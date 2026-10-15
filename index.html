@@ -166,6 +166,18 @@ td.l{text-align:left}
 .rank .meter span{position:absolute;top:0;bottom:0;border-radius:2px}
 .rank .pct{grid-row:1/span 2;grid-column:3;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
 
+/* scorecard */
+table.score td,table.score th{padding-left:8px;padding-right:8px}
+table.score th.on,table.score td.on{background:var(--accent-soft)}
+table.score tr.mine td{font-weight:600}
+table.score tr.mine td:first-child{background:var(--accent-soft)}
+table.score .rk{display:inline-block;min-width:20px;color:var(--muted);font-size:12px;font-weight:600}
+table.score .mbar{position:relative;height:3px;background:var(--surface-2);border-radius:2px;margin-top:4px;overflow:hidden;width:110px}
+table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
+.sim{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-top:1px solid var(--line-2);font-size:14px}
+.sim.mine{border-top:0;padding-top:0}
+.simbar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.simbar span{display:block;height:100%;border-radius:3px}
 /* periods timeline */
 .tl{display:flex;height:30px;border-radius:8px;overflow:hidden;gap:2px;margin:6px 0 4px}
 .tl button{border:0;padding:0;font-size:11px;color:var(--accent-ink);font-weight:600;overflow:hidden;white-space:nowrap;min-width:6px}
@@ -928,31 +940,109 @@ function fundRanks(k) {
   return out.sort((x, y) => y.r - x.r);
 }
 function heldPlans() { const h = holdingsAt(SERIES.length ? SERIES[SERIES.length - 1].t : 1e9); return Object.keys(h); }
+function navInterp(p, t) {
+  const a = NAV[p]; if (!a || !a.length) return null;
+  let lo = null, hi = null; for (const n of a) { if (n.t <= t) lo = n; else { hi = n; break; } }
+  if (lo && lo.t === t) return {v: lo.v, approx: false};
+  if (lo && !hi) return t - lo.t <= 7 ? {v: lo.v, approx: false} : null;
+  if (!lo) return hi && hi.t - t <= 7 ? {v: hi.v, approx: false} : null;
+  const w = (t - lo.t) / (hi.t - lo.t); return {v: Math.exp(Math.log(lo.v) + w * (Math.log(hi.v) - Math.log(lo.v))), approx: hi.t - lo.t > 45};
+}
+function simulate(p, a, b) { // all money in plan p from day a to b, using your real contributions
+  const startV = a > (T[0]?.t ?? 1e9) ? valueAt(a).value : 0;
+  const F = T.filter(x => x.kind === 'contrib' && x.t > a && x.t <= b);
+  let units = 0, approx = false, nApprox = 0;
+  if (startV > 0) { const n = navInterp(p, a); if (!n) return null; units += startV / n.v; approx ||= n.approx; }
+  for (const x of F) { const n = navInterp(p, x.t); if (!n) return null; units += x.amount / n.v; if (n.approx) nApprox++; }
+  const e = navAt(p, b); if (!e || b - e.t > 7) return null;
+  return {end: r2(units * e.v), approx: approx || nApprox > F.length / 3, C: r2(F.reduce((s, x) => s + x.amount, 0)), startV};
+}
+function maxDrawdown(p, a, b) { const pts = (NAV[p] || []).filter(n => n.t >= a && n.t <= b); if (pts.length < 4) return null; let peak = pts[0].v, mdd = 0; for (const n of pts) { peak = Math.max(peak, n.v); mdd = Math.min(mdd, n.v / peak - 1); } return mdd; }
+function planMetrics() {
+  const lastT = d2t(NAVDATES[NAVDATES.length - 1]); const out = [];
+  const R = {}; for (const k of ['LAST', '1M', '3M', 'YTD', '1Y', '3Y', '5Y']) for (const r of fundRanks(k)) (R[r.p] ||= {})[k] = r;
+  const rf3 = R['เงินฝากและตราสารหนี้ระยะสั้น']?.['3Y']?.r ?? 0.02, rf1 = R['เงินฝากและตราสารหนี้ระยะสั้น']?.['1Y']?.r ?? 0.015;
+  for (const p of PLANS) { if (!NAV[p]) continue; const r = R[p] || {}; const risk = planRisk(p); const mdd = maxDrawdown(p, lastT - 1830, lastT);
+    const base = r['3Y'] ? r['3Y'].r - rf3 : (r['1Y'] ? r['1Y'].r - rf1 : null);
+    out.push({p, nav: navAt(p, 1e9).v, r, risk, mdd, score: risk && base != null && risk.sd > 0.004 ? base / risk.sd : null}); }
+  return out;
+}
+const SORTS = [['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['YTD', 'ต้นปี'], ['3M', '3 เดือน'], ['1M', '1 เดือน'], ['LAST', 'ล่าสุด'], ['score', 'คุ้มความเสี่ยง'], ['risk', 'ผันผวนต่ำ']];
+function sortVal(m, k) { if (k === 'score') return m.score; if (k === 'risk') return m.risk ? -m.risk.sd : null; return m.r[k]?.r ?? null; }
 function renderFunds() {
   const el = $('#v-funds'); const held = heldPlans();
   if (!S.fundSel) { S.fundSel = [...new Set([...held, 'หุ้นต่างประเทศ', 'ทองคำ', 'หุ้นไทย'])].slice(0, 4); }
-  const ranks = fundRanks(S.fundPeriod); const maxAbs = Math.max(...ranks.map(r => Math.abs(r.r)), 0.0001);
-  const pers = [['LAST', 'ล่าสุด'], ['1M', '1 เดือน'], ['3M', '3 เดือน'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['ALL', 'ตั้งแต่ตั้ง/ปี']];
-  const ex = ranks[0];
-  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>จัดอันดับ ${PLANS.length} แผน</h2><span class="note">NAV ${thd(NAVDATES[NAVDATES.length - 1])}</span></div>
-  <div class="seg" role="group" aria-label="ช่วงผลตอบแทน">${pers.map(([k, l]) => `<button data-fper="${k}" aria-pressed="${S.fundPeriod === k}">${l}</button>`).join('')}</div>
-  <div class="card" style="margin-top:10px">${ex ? `<p class="note" style="margin:0 0 6px">${['3Y', '5Y', 'ALL'].includes(S.fundPeriod) ? 'ผลตอบแทนเฉลี่ยต่อปี · ' : ''}เทียบ NAV ${thd(ex.s.d)} → ${thd(ex.e.d)}</p>` : ''}
-    ${ranks.map((r, i) => `<div class="rank ${i === 0 ? 'top' : ''} ${held.includes(r.p) ? 'mine' : ''}"><span class="no">${i + 1}</span><span class="nm">แผน${esc(r.p)} ${held.includes(r.p) ? '<span class="pill acc">ถืออยู่</span>' : ''}${r.late ? `<span class="note"> · เริ่ม ${thd(r.s.d)}</span>` : ''}${S.fundPeriod === 'ALL' ? `<span class="note"> · ${r.yrs.toFixed(0)} ปี</span>` : ''}</span><span class="pct ${cls(r.r)}">${pct(r.r)}</span><span class="meter"><span style="left:${r.r >= 0 ? 50 : 50 - Math.abs(r.r) / maxAbs * 50}%;width:${Math.abs(r.r) / maxAbs * 50}%;background:${r.r >= 0 ? 'var(--up)' : 'var(--down)'}"></span></span></div>`).join('')}
-    ${!ranks.length ? '<p class="note">ยังไม่มี NAV พอสำหรับช่วงนี้</p>' : ''}
+  S.fundSort ||= '1Y'; S.simWin ||= '1Y';
+  const M = planMetrics(); const lastD = NAVDATES[NAVDATES.length - 1];
+  const sorted = [...M].sort((x, y) => { const a = sortVal(x, S.fundSort), b = sortVal(y, S.fundSort); return (b ?? -1e9) - (a ?? -1e9); });
+  const pc = (o, dp = 1) => o ? `<span class="${cls(o.r)}">${pct(o.r, dp)}${o.late ? '*' : ''}</span>` : '<span class="muted">—</span>';
+  const colK = S.fundSort; const maxAbs = Math.max(0.0001, ...M.map(m => Math.abs(sortVal(m, colK) ?? 0)));
+  el.innerHTML = `${simCard(held)}
+  <div class="sec-h"><h2>ตารางเปรียบเทียบ ${M.length} แผน</h2><span class="note">NAV ${thd(lastD)}</span></div>
+  <div class="card stack">
+    <div><div class="eyebrow" style="margin-bottom:6px">จัดอันดับตาม</div><div class="chips">${SORTS.map(([k, l]) => `<button class="chip" data-fsort="${k}" aria-pressed="${S.fundSort === k}">${l}</button>`).join('')}</div></div>
+    <div class="tbl-wrap"><table class="score"><thead><tr><th>#&nbsp; แผน</th>${[['LAST', 'ล่าสุด'], ['1M', '1 ด.'], ['3M', '3 ด.'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['risk', 'ผันผวน/ปี'], ['mdd', 'ลดลงสูงสุด'], ['worst', 'ไตรมาสแย่สุด'], ['score', 'คุ้มเสี่ยง'], ['nav', 'NAV']].map(([k, l]) => `<th ${['mdd', 'worst', 'nav'].includes(k) ? '' : `data-fsort="${k}" style="cursor:pointer"`} class="${S.fundSort === k ? 'on' : ''}">${l}${S.fundSort === k ? ' ▾' : ''}</th>`).join('')}</tr></thead><tbody>
+    ${sorted.map((m, i) => { const v = sortVal(m, colK); return `<tr class="${held.includes(m.p) ? 'mine' : ''}"><td class="l"><span class="rk">${v == null ? '–' : i + 1}</span>${esc(sh(m.p))}${held.includes(m.p) ? ' <span class="pill acc">ถือ</span>' : ''}${v != null && !['risk'].includes(colK) ? `<div class="mbar"><span style="${v >= 0 ? 'left:50%' : `right:50%`};width:${Math.abs(v) / maxAbs * 50}%;background:${v >= 0 ? 'var(--up)' : 'var(--down)'}"></span></div>` : ''}</td>
+      ${['LAST', '1M', '3M', 'YTD', '1Y', '3Y', '5Y'].map(k => `<td class="${S.fundSort === k ? 'on' : ''}">${pc(m.r[k], k === 'LAST' ? 2 : 1)}</td>`).join('')}
+      <td class="${S.fundSort === 'risk' ? 'on' : ''}">${m.risk ? nf(m.risk.sd * 100, 1) + '%' : '—'}</td><td class="down">${m.mdd != null ? pct(m.mdd, 1) : '—'}</td><td class="down">${m.risk ? pct(m.risk.worst, 1) : '—'}</td>
+      <td class="${S.fundSort === 'score' ? 'on' : ''}">${m.score != null ? nf(m.score, 2) : '—'}</td><td class="mono">${nf(m.nav, 4)}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <details><summary class="note" style="cursor:pointer">อ่านตารางนี้อย่างไร</summary><div class="note" style="margin-top:6px;line-height:1.7">
+      • <b>3 ปี/ปี, 5 ปี/ปี</b> ผลตอบแทนเฉลี่ยต่อปีแบบทบต้น · * แผนเริ่มมีข้อมูลหลังต้นช่วง นับจากวันแรกที่มี<br>
+      • <b>ผันผวน/ปี</b> ยิ่งสูงยิ่งขึ้นลงแรง (คิดจาก NAV สิ้นไตรมาส 5 ปี) · <b>ลดลงสูงสุด</b> จากจุดสูงสุดลงไปต่ำสุดใน 5 ปี · <b>ไตรมาสแย่สุด</b> 3 เดือนที่ลงหนักที่สุด<br>
+      • <b>คุ้มเสี่ยง</b> = (ผลตอบแทน 3 ปี/ปี − แผนเงินฝากระยะสั้น) ÷ ผันผวน ยิ่งสูงยิ่งได้ผลตอบแทนส่วนเกินต่อความผันผวน 1 หน่วยมาก ถ้าแผนไม่ถึง 3 ปีใช้ 1 ปีแทน<br>
+      • ล่าสุด เทียบ NAV ${thd(NAVDATES[NAVDATES.length - 2])} → ${thd(lastD)} · ช่วงอื่นใช้ NAV ใกล้วันที่สุดที่มี</div></details>
   </div>
+  <div class="sec-h"><h2>ผลตอบแทนเทียบความเสี่ยง</h2><span class="note">3 ปี/ปี × ผันผวน</span></div>
+  <div class="card"><div id="rrChart"></div><p class="note" style="margin:4px 0 0">มุมซ้ายบนดีที่สุด (ผลตอบแทนสูง ผันผวนต่ำ) แผนที่ไม่มีข้อมูล 3 ปีใช้ผลตอบแทน 1 ปี (วงกลมโปร่ง)</p></div>
   <div class="sec-h"><h2>เทียบการเติบโต</h2><span class="note">เลือกได้สูงสุด 6 แผน</span></div>
   <div class="card stack">
     <div class="seg" role="group" aria-label="ช่วงกราฟ">${[['1Y', '1 ปี'], ['3Y', '3 ปี'], ['5Y', '5 ปี'], ['ALL', 'ทั้งหมด']].map(([k, l]) => `<button data-frange="${k}" aria-pressed="${S.fundRange === k}">${l}</button>`).join('')}</div>
     <div class="chips">${PLANS.filter(p => NAV[p]).map(p => { const i = S.fundSel.indexOf(p); return `<button class="chip" data-fsel="${esc(p)}" aria-pressed="${i >= 0}">${i >= 0 ? `<span class="dot" style="margin:0;background:${slotColor(p)}"></span>` : ''}${esc(sh(p))}</button>`; }).join('')}</div>
     <div id="fChart"></div><div class="legend" id="fLegend"></div>
-    <p class="note" style="margin:0">เริ่มทุกแผนที่ 100 ณ วันแรกของช่วง ใช้ NAV ทางการ (รายปีก่อน 2564 รายไตรมาสถึงปี 2568 แล้วรายเดือน) ร่วมกับ NAV จากใบแจ้งยอดของคุณ</p>
   </div>
-  <div class="sec-h"><h2>ตาราง NAV และผลตอบแทน</h2><span class="note">เลื่อนตารางไปทางขวา →</span></div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>แผน</th><th>NAV</th><th>1 เดือน</th><th>ต้นปี</th><th>1 ปี</th><th>3 ปี/ปี</th><th>5 ปี/ปี</th><th>ผันผวน/ปี</th><th>ไตรมาสแย่สุด</th></tr></thead><tbody>
-  ${PLANS.filter(p => NAV[p]).map(p => { const last = navAt(p, 1e9); const g = k => fundRanks(k).find(r => r.p === p); return `<tr><td class="l">${esc(sh(p))}${held.includes(p) ? ' <span class="pill acc">ถือ</span>' : ''}</td><td class="mono">${nf(last.v, 4)}</td>${['1M', 'YTD', '1Y', '3Y', '5Y'].map(k => { const x = g(k); return `<td class="${x ? cls(x.r) : ''}">${x ? pct(x.r, 1) + (x.late ? '*' : '') : '—'}</td>`; }).join('')}${(() => { const k = planRisk(p); return k ? `<td>${nf(k.sd * 100, 1)}%</td><td class="down">${pct(k.worst, 1)}</td>` : '<td>—</td><td>—</td>'; })()}</tr>`; }).join('')}
-  </tbody></table></div>
-  <p class="note" style="margin-bottom:0">"3 ปี/ปี" และ "5 ปี/ปี" คือผลตอบแทนเฉลี่ยต่อปีแบบทบต้น ไม่ใช่ผลรวมทั้งช่วง · * แผนเริ่มมีข้อมูลหลังต้นช่วง จึงนับจากวันแรกที่มี · ผันผวน/ปี และไตรมาสแย่สุด คิดจาก NAV สิ้นไตรมาสย้อนหลัง 5 ปี ยิ่งสูงยิ่งขึ้นลงแรง</p></div>`;
-  drawFundChart();
+  <p class="note">ข้อมูลย้อนหลังช่วยให้เห็นลักษณะของแต่ละแผน ไม่ได้บอกผลตอบแทนในอนาคต การเปลี่ยนแผนควรดูระยะเวลาก่อนเกษียณและความเสี่ยงที่รับได้ประกอบ</p>`;
+  drawFundChart(); drawRR(M, held);
+}
+function simCard(held) {
+  if (!T.length) return `<div class="card" style="margin-top:12px"><h3>ถ้าใช้แผนอื่น จะได้เท่าไร</h3><p class="note" style="margin:4px 0 0">นำเข้า PDF ก่อน แล้วแอปจะจำลองให้ว่าถ้าเงินของคุณอยู่ในแต่ละแผน จะมีมูลค่าเท่าไรเทียบกับของจริง</p></div>`;
+  const b = SERIES[SERIES.length - 1].t; const first = T[0].t;
+  const a = {'1Y': b - 365, '3Y': b - 1095, '5Y': b - 1826, ALL: first - 1}[S.simWin]; const a2 = Math.max(a, first - 1);
+  const actual = valueAt(b).value; const startV = a2 > first ? valueAt(a2).value : 0; const C = r2(flows(a2, b).reduce((s, x) => s + x.amount, 0));
+  const all = PLANS.filter(p => NAV[p]).map(p => ({p, s: simulate(p, a2, b), mdd: maxDrawdown(p, a2, b)}));
+  const rows = all.filter(x => x.s).sort((x, y) => y.s.end - x.s.end); const skipped = all.filter(x => !x.s).map(x => sh(x.p));
+  const mineIdx = rows.length; const better = rows.filter(r => r.s.end > actual);
+  const top = rows[0]; const max = Math.max(actual, ...rows.map(r => r.s.end)), min = Math.min(actual, ...rows.map(r => r.s.end));
+  const w = v => ((v - min) / Math.max(1, max - min) * 80 + 20).toFixed(1);
+  return `<div class="sec-h" style="margin-top:12px"><h2>ถ้าใช้แผนอื่น จะได้เท่าไร</h2></div>
+  <div class="card stack">
+    <div class="seg" role="group" aria-label="ช่วงจำลอง">${[['1Y', '1 ปีที่แล้ว'], ['3Y', '3 ปี'], ['5Y', '5 ปี'], ['ALL', 'ตั้งแต่เริ่ม']].map(([k, l]) => `<button data-simwin="${k}" aria-pressed="${S.simWin === k}">${l}</button>`).join('')}</div>
+    <p class="note" style="margin:0">ใช้เงินจริงของคุณ: ${startV ? `มูลค่า ${money(startV, 0)} ณ ${thd(t2d(a2))} + ` : ''}เงินนำส่ง ${money(C, 0)} แล้วสมมติว่าทั้งหมดอยู่ในแผนเดียวตลอดช่วง ไม่มีการย้าย</p>
+    <div class="sim mine"><div class="row between"><b>พอร์ตจริงของคุณ</b><b class="num">${money(actual)}</b></div><div class="simbar"><span style="width:${w(actual)}%;background:var(--accent)"></span></div></div>
+    ${rows.map((r, i) => { const d = r.s.end - actual; const tag = i === 5 && rows.length > 6 ? '<details class="more"><summary class="note" style="cursor:pointer;padding:8px 0">ดูอีก ' + (rows.length - 5) + ' แผน</summary>' : ''; return `<div class="sim ${held.includes(r.p) && held.length === 1 ? 'same' : ''}"><div class="row between"><span>แผน${esc(sh(r.p))}${held.includes(r.p) ? ' <span class="pill acc">ถืออยู่</span>' : ''}${r.s.approx ? ' <span class="pill">ประมาณ</span>' : ''}</span><span class="num"><b>${money(r.s.end, 0)}</b> <span class="${cls(d)}" style="font-size:12.5px">${money(d, 0, true)}</span></span></div><div class="simbar"><span style="width:${w(r.s.end)}%;background:${d >= 0 ? 'var(--up)' : 'var(--down)'};opacity:.75"></span></div>${r.mdd != null ? `<div class="note">ระหว่างทางเคยลดลงสูงสุด ${pct(r.mdd, 1)}</div>` : ''}</div>`.replace(/^/, tag); }).join('')}${rows.length > 6 ? '</details>' : ''}
+    <div class="verdict ${better.length ? '' : 'good'}">${better.length ? `ในช่วงนี้มี ${better.length} แผนที่ให้ผลดีกว่าพอร์ตจริง สูงสุดคือแผน${esc(sh(top.p))} มากกว่า ${money(top.s.end - actual, 0)}${top.mdd != null ? ` แต่ระหว่างทางเคยลดลงถึง ${pct(top.mdd, 1)}` : ''}` : 'พอร์ตจริงของคุณทำได้ดีกว่าทุกแผนในช่วงนี้'}<br><span class="note">ผลในอดีตไม่ได้บอกอนาคต แผนที่ชนะช่วงสั้นมักผันผวนสูง ลองเปลี่ยนช่วงเวลาเพื่อดูว่าแผนไหนดีสม่ำเสมอ</span></div>
+    <p class="note" style="margin:0">"ประมาณ" คือช่วงที่ไม่มี NAV ของแผนนั้นในวันที่เงินเข้า จึงประมาณจาก NAV ก่อนและหลัง ${skipped.length ? `แผนที่ไม่มีข้อมูลครบช่วงนี้จึงไม่แสดง: ${esc(skipped.join(', '))} ลองเลือกช่วงที่สั้นลง` : ''}</p>
+  </div>`;
+}
+function drawRR(M, held) {
+  const el = $('#rrChart'); if (!el) return; const pts = M.filter(m => m.risk && (m.r['3Y'] || m.r['1Y'])).map(m => ({p: m.p, x: m.risk.sd, y: (m.r['3Y'] || m.r['1Y']).r, full: !!m.r['3Y']}));
+  if (!pts.length) { el.innerHTML = ''; return; }
+  const W = Math.max(280, el.clientWidth || 340), H = 240, pl = 36, pr = 12, pt = 10, pb = 28;
+  const x1 = Math.max(...pts.map(p => p.x)) * 1.1, y0 = Math.min(0, ...pts.map(p => p.y)), y1 = Math.max(...pts.map(p => p.y)) * 1.12;
+  const X = v => pl + v / x1 * (W - pl - pr), Y = v => pt + (1 - (v - y0) / (y1 - y0)) * (H - pt - pb);
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="ผลตอบแทนเทียบความผันผวน">`;
+  for (const v of niceTicks(y0, y1, 4)) s += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line-2)"/><text x="${pl - 5}" y="${Y(v) + 4}" font-size="10" fill="var(--muted)" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  for (const v of niceTicks(0, x1, 4)) s += `<text x="${X(v)}" y="${H - 12}" font-size="10" fill="var(--muted)" text-anchor="middle">${Math.round(v * 100)}%</text>`;
+  s += `<text x="${W - pr}" y="${H - 1}" font-size="10" fill="var(--muted)" text-anchor="end">ผันผวน/ปี →</text>`;
+  const boxes = []; let dots = '', labels = '';
+  for (const p of pts) { const mine = held.includes(p.p); dots += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${mine ? 6 : 4.5}" fill="${p.full ? (mine ? 'var(--accent)' : 'var(--ink-2)') : 'var(--surface)'}" stroke="${mine ? 'var(--accent)' : 'var(--ink-2)'}" stroke-width="1.6"><title>${esc(p.p)}: ${pct(p.y, 1)} / ${nf(p.x * 100, 1)}%</title></circle>`; boxes.push({x0: X(p.x) - 6, x1: X(p.x) + 6, y0: Y(p.y) - 6, y1: Y(p.y) + 6}); }
+  const order = [...pts].sort((a, b) => (held.includes(b.p) - held.includes(a.p)) || (b.y - a.y));
+  for (const p of order) { const mine = held.includes(p.p); const cx = X(p.x), cy = Y(p.y); const txt = sh(p.p); const w = txt.length * 6.2 + 4;
+    const cands = [[cx + 8, cy - 4, 'start'], [cx + 8, cy + 12, 'start'], [cx - 8, cy - 4, 'end'], [cx - 8, cy + 12, 'end'], [cx - w / 2, cy - 12, 'start']];
+    let ok = null; for (const [lx, ly, an] of cands) { const bx = an === 'end' ? {x0: lx - w, x1: lx} : {x0: lx, x1: lx + w}; const b = {...bx, y0: ly - 10, y1: ly + 2}; if (b.x0 < pl || b.x1 > W - 2 || b.y0 < 0 || b.y1 > H - pb) continue; if (boxes.some(q => !(b.x1 < q.x0 || b.x0 > q.x1 || b.y1 < q.y0 || b.y0 > q.y1))) continue; ok = [lx, ly, an, b]; break; }
+    if (!ok) continue; boxes.push(ok[3]); labels += `<text x="${ok[0]}" y="${ok[1]}" font-size="10.5" fill="${mine ? 'var(--accent)' : 'var(--ink-2)'}" font-weight="${mine ? 700 : 400}" text-anchor="${ok[2]}">${esc(txt)}</text>`; }
+  s += dots + labels;
+  el.innerHTML = s + '</svg>'; el.classList.add('chart');
 }
 const SLOT = {}; function slotColor(p) { if (!(p in SLOT)) { const used = new Set(Object.entries(SLOT).filter(([k]) => S.fundSel.includes(k)).map(([, v]) => v)); let i = 1; while (used.has(i)) i++; SLOT[p] = i; } return `var(--s${SLOT[p]})`; }
 function drawFundChart() {
@@ -1182,7 +1272,7 @@ async function initDb() {
 
 /* ---------- events ---------- */
 document.addEventListener('click', async e => {
-  const b = e.target.closest('button,[data-act]'); if (!b) return;
+  const b = e.target.closest('button,[data-act],th[data-fsort]'); if (!b) return;
   if (b.dataset.tab) { S.tab = b.dataset.tab; render(); window.scrollTo({top: 0}); try { history.replaceState(null, '', '#' + S.tab); } catch {} return; }
   if (b.id === 'btnHide') { HIDE = !HIDE; store.set('hide', HIDE); render(); return; }
   if (b.id === 'btnSettings') return sheetSettings();
@@ -1193,6 +1283,8 @@ document.addEventListener('click', async e => {
   if (b.dataset.year) { S.txYear = b.dataset.year === 'all' ? 'all' : (S.histSeg === 'tx' ? b.dataset.year : +b.dataset.year); render(); return; }
   if (b.dataset.era) { $('#era-' + b.dataset.era)?.scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
   if (b.dataset.fper) { S.fundPeriod = b.dataset.fper; render(); return; }
+  if (b.dataset.fsort) { S.fundSort = b.dataset.fsort; render(); return; }
+  if (b.dataset.simwin) { S.simWin = b.dataset.simwin; render(); return; }
   if (b.dataset.frange) { S.fundRange = b.dataset.frange; render(); return; }
   if (b.dataset.fsel) { const p = b.dataset.fsel; const i = S.fundSel.indexOf(p); if (i >= 0) { if (S.fundSel.length > 1) S.fundSel.splice(i, 1); } else if (S.fundSel.length < 6) S.fundSel.push(p); else toast('เลือกได้สูงสุด 6 แผน'); render(); return; }
   if (b.dataset.nf) { S.newsFilter = b.dataset.nf; render(); return; }
@@ -1202,7 +1294,7 @@ document.addEventListener('click', async e => {
   if (act === 'backup') return doBackup();
   if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
 });
-let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') drawFundChart(); if (S.tab === 'history') render(); }, 150); });
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') { drawFundChart(); renderFunds(); } if (S.tab === 'history') render(); }, 150); });
 document.addEventListener('change', e => { if (e.target.id === 'bkInHome' && e.target.files[0]) restoreBackup(e.target.files[0]); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
