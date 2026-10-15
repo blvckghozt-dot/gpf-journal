@@ -178,6 +178,9 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .sim.mine{border-top:0;padding-top:0}
 .simbar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
 .simbar span{display:block;height:100%;border-radius:3px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
+.mini b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* periods timeline */
 .tl{display:flex;height:30px;border-radius:8px;overflow:hidden;gap:2px;margin:6px 0 4px}
 .tl button{border:0;padding:0;font-size:11px;color:var(--accent-ink);font-weight:600;overflow:hidden;white-space:nowrap;min-width:6px}
@@ -967,8 +970,40 @@ function planMetrics() {
     out.push({p, nav: navAt(p, 1e9).v, r, risk, mdd, score: risk && base != null && risk.sd > 0.004 ? base / risk.sd : null}); }
   return out;
 }
-const SORTS = [['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['YTD', 'ต้นปี'], ['3M', '3 เดือน'], ['1M', '1 เดือน'], ['LAST', 'ล่าสุด'], ['score', 'คุ้มความเสี่ยง'], ['risk', 'ผันผวนต่ำ']];
-function sortVal(m, k) { if (k === 'score') return m.score; if (k === 'risk') return m.risk ? -m.risk.sd : null; return m.r[k]?.r ?? null; }
+const SORTS = [['fit', 'เหมาะกับระยะเวลา'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['YTD', 'ต้นปี'], ['3M', '3 เดือน'], ['1M', '1 เดือน'], ['LAST', 'ล่าสุด'], ['score', 'คุ้มความเสี่ยง'], ['risk', 'ผันผวนต่ำ']];
+function sortVal(m, k) { if (k === 'fit') { const h = horizon(); if (!h || !m.risk) return null; const b = bandFor(h); return m.risk.sd <= b.max + 0.002 && m.risk.sd >= b.min - 0.002 ? 10 + (m.score ?? 0) : (m.score ?? 0) - 10; } if (k === 'score') return m.score; if (k === 'risk') return m.risk ? -m.risk.sd : null; return m.r[k]?.r ?? null; }
+function curYearBE() { return new Date().getFullYear() + 543; }
+function horizon() { const y = +S.user.settings.retireYear; if (!y) return null; const end = d2t(`${y}-09-30`); const now = d2t(todayD()); return {year: y, days: end - now, years: Math.max(0, (end - now) / 365.25)}; }
+function bandFor(h) {
+  if (h.years >= 15) return {min: 0.06, max: 0.17, label: 'รับความผันผวนได้สูง', note: 'ยังมีเวลาให้ตลาดฟื้นหลายรอบ แผนหุ้นหรือแผนเชิงรุกสัดส่วนหุ้นสูงทำงานได้เต็มที่'};
+  if (h.years >= 8) return {min: 0.03, max: 0.10, label: 'ผันผวนปานกลางค่อนสูง', note: 'ยังลงทุนเพื่อการเติบโตได้ แต่ควรเลี่ยงแผนที่เคยลดลงเกิน 20–25% ในช่วงสั้น'};
+  if (h.years >= 3) return {min: 0.012, max: 0.05, label: 'ผันผวนปานกลางค่อนต่ำ', note: 'เริ่มลดสัดส่วนหุ้น ถ้าตลาดตกหนักช่วงนี้ อาจฟื้นไม่ทันก่อนเกษียณ'};
+  return {min: 0, max: 0.025, label: 'เน้นรักษาเงินต้น', note: 'ใกล้เกษียณ ความเสียหายระยะสั้นสำคัญกว่าผลตอบแทน ควรอยู่แผนตราสารหนี้หรือเงินฝากเป็นหลัก'};
+}
+function portVol(M) { const h = holdingsAt(1e9); const v = valueOf(h, 1e9); let s = 0, w = 0; for (const [p, o] of Object.entries(v.parts)) { const m = M.find(x => x.p === p); if (m?.risk) { s += o.value * m.risk.sd; w += o.value; } } return w ? s / w : null; }
+function retireCard(M, held) {
+  const h = horizon();
+  if (!h) return `<div class="card stack" style="margin-top:12px"><div><h3>ระยะเวลาก่อนเกษียณ</h3><p class="note" style="margin:2px 0 0">ใส่ปีที่จะเกษียณ แอปจะบอกระดับความผันผวนที่เหมาะ แผนที่เข้ากับคุณ และประมาณเงินตอนเกษียณ</p></div>
+    <div class="row" style="gap:8px"><input class="inp num" id="retQuick" type="number" inputmode="numeric" placeholder="ปี พ.ศ. เช่น 2595" style="flex:1"><button class="btn" data-act="retsave">บันทึก</button></div>
+    <p class="note" style="margin:0">ข้าราชการเกษียณเมื่ออายุครบ 60 ปี ในวันที่ 30 ก.ย. ของปีงบประมาณ ถ้าเกิดเดือน ต.ค.–ธ.ค. จะเกษียณปีถัดไป</p></div>`;
+  const band = bandFor(h); const pv = portVol(M);
+  const fits = M.filter(m => m.risk && m.risk.sd <= band.max + 0.002 && m.risk.sd >= band.min - 0.002);
+  const best = [...fits].filter(m => m.score != null).sort((a, b) => b.score - a.score).slice(0, 3);
+  const status = pv == null ? null : pv > band.max * 1.3 ? ['bad', 'เสี่ยงกว่าระดับที่แนะนำ'] : pv > band.max + 0.002 ? ['warn', 'เสี่ยงกว่าระดับที่แนะนำเล็กน้อย'] : pv < band.min - 0.002 ? ['warn', 'ระมัดระวังกว่าที่จำเป็น อาจโตช้า'] : ['ok', 'อยู่ในระดับที่เหมาะ'];
+  // projection
+  const lastC = T.filter(x => x.kind === 'contrib').pop(); const monthly = lastC ? r2(T.filter(x => x.t === lastC.t && x.kind === 'contrib').reduce((s, x) => s + x.amount, 0)) : 0;
+  const V = SERIES.length ? SERIES[SERIES.length - 1].value : 0; const n = Math.max(0, Math.round(h.days / 30.44));
+  const fv = r => { const rm = Math.pow(1 + r, 1 / 12) - 1; return V * Math.pow(1 + rm, n) + (rm ? monthly * (Math.pow(1 + rm, n) - 1) / rm : monthly * n); };
+  const scen = [[0.02, 'แบบระวัง 2%'], [0.04, 'กลาง 4%'], [0.06, 'ดี 6%']];
+  return `<div class="card stack" style="margin-top:12px">
+    <div class="row between" style="align-items:flex-start"><div><div class="eyebrow">เกษียณ 30 ก.ย. ${h.year}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">อีก ${h.years >= 1 ? nf(h.years, 1) + ' ปี' : Math.max(0, Math.round(h.days / 30.4)) + ' เดือน'}</div></div><button class="btn ghost" data-act="settings" style="padding:4px 0">แก้ปี</button></div>
+    <div class="verdict"><b>${band.label}</b> · ผันผวนประมาณ ${band.min ? Math.round(band.min * 100) + '–' : 'ไม่เกิน '}${Math.round(band.max * 100)}% ต่อปี<br><span class="note">${band.note}</span></div>
+    ${pv != null ? `<div class="row between"><span>พอร์ตตอนนี้ผันผวนประมาณ <b>${nf(pv * 100, 1)}%</b>/ปี</span><span class="pill ${status[0]}">${status[1]}</span></div>` : ''}
+    ${best.length ? `<div><div class="eyebrow" style="margin-bottom:4px">แผนในระดับนี้ที่คุ้มความเสี่ยงที่สุด</div>${best.map(m => { const r = m.r['3Y'] || m.r['1Y']; return `<div class="row between" style="padding:4px 0;font-size:14px"><span>แผน${esc(sh(m.p))}${held.includes(m.p) ? ' <span class="pill acc">ถืออยู่</span>' : ''}</span><span class="num">${r ? pct(r.r, 1) + (m.r['3Y'] ? '/ปี' : ' (1 ปี)') : ''} · ผันผวน ${nf(m.risk.sd * 100, 1)}%</span></div>`; }).join('')}</div>` : ''}
+    <div><div class="eyebrow" style="margin-bottom:4px">ประมาณเงินตอนเกษียณ</div><div class="grid3">${scen.map(([r, l]) => `<div class="mini"><div class="note">${l}/ปี</div><b class="num">${money(fv(r), 0)}</b></div>`).join('')}</div>
+      <p class="note" style="margin:6px 0 0">จากมูลค่าตอนนี้ ${money(V, 0)} บวกเงินนำส่งเดือนละ ${money(monthly, 0)} (เท่าเดือนล่าสุด) อีก ${n} เดือน ยังไม่รวมเงินเดือนที่ขึ้น ตัวเลขใช้ดูภาพรวมเท่านั้น</p></div>
+  </div>`;
+}
 function renderFunds() {
   const el = $('#v-funds'); const held = heldPlans();
   if (!S.fundSel) { S.fundSel = [...new Set([...held, 'หุ้นต่างประเทศ', 'ทองคำ', 'หุ้นไทย'])].slice(0, 4); }
@@ -977,12 +1012,13 @@ function renderFunds() {
   const sorted = [...M].sort((x, y) => { const a = sortVal(x, S.fundSort), b = sortVal(y, S.fundSort); return (b ?? -1e9) - (a ?? -1e9); });
   const pc = (o, dp = 1) => o ? `<span class="${cls(o.r)}">${pct(o.r, dp)}${o.late ? '*' : ''}</span>` : '<span class="muted">—</span>';
   const colK = S.fundSort; const maxAbs = Math.max(0.0001, ...M.map(m => Math.abs(sortVal(m, colK) ?? 0)));
-  el.innerHTML = `${simCard(held)}
+  const hz = horizon(); const band = hz ? bandFor(hz) : null; const fitP = m => band && m.risk && m.risk.sd <= band.max + 0.002 && m.risk.sd >= band.min - 0.002;
+  el.innerHTML = `${retireCard(M, held)}${simCard(held)}
   <div class="sec-h"><h2>ตารางเปรียบเทียบ ${M.length} แผน</h2><span class="note">NAV ${thd(lastD)}</span></div>
   <div class="card stack">
     <div><div class="eyebrow" style="margin-bottom:6px">จัดอันดับตาม</div><div class="chips">${SORTS.map(([k, l]) => `<button class="chip" data-fsort="${k}" aria-pressed="${S.fundSort === k}">${l}</button>`).join('')}</div></div>
     <div class="tbl-wrap"><table class="score"><thead><tr><th>#&nbsp; แผน</th>${[['LAST', 'ล่าสุด'], ['1M', '1 ด.'], ['3M', '3 ด.'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['risk', 'ผันผวน/ปี'], ['mdd', 'ลดลงสูงสุด'], ['worst', 'ไตรมาสแย่สุด'], ['score', 'คุ้มเสี่ยง'], ['nav', 'NAV']].map(([k, l]) => `<th ${['mdd', 'worst', 'nav'].includes(k) ? '' : `data-fsort="${k}" style="cursor:pointer"`} class="${S.fundSort === k ? 'on' : ''}">${l}${S.fundSort === k ? ' ▾' : ''}</th>`).join('')}</tr></thead><tbody>
-    ${sorted.map((m, i) => { const v = sortVal(m, colK); return `<tr class="${held.includes(m.p) ? 'mine' : ''}"><td class="l"><span class="rk">${v == null ? '–' : i + 1}</span>${esc(sh(m.p))}${held.includes(m.p) ? ' <span class="pill acc">ถือ</span>' : ''}${v != null && !['risk'].includes(colK) ? `<div class="mbar"><span style="${v >= 0 ? 'left:50%' : `right:50%`};width:${Math.abs(v) / maxAbs * 50}%;background:${v >= 0 ? 'var(--up)' : 'var(--down)'}"></span></div>` : ''}</td>
+    ${sorted.map((m, i) => { const v = sortVal(m, colK); return `<tr class="${held.includes(m.p) ? 'mine' : ''}"><td class="l"><span class="rk">${v == null ? '–' : i + 1}</span>${esc(sh(m.p))}${held.includes(m.p) ? ' <span class="pill acc">ถือ</span>' : ''}${fitP(m) ? ' <span class="pill ok" title="ความผันผวนอยู่ในระดับที่เหมาะกับระยะเวลาก่อนเกษียณ">เหมาะ</span>' : ''}${v != null && !['risk', 'fit'].includes(colK) ? `<div class="mbar"><span style="${v >= 0 ? 'left:50%' : `right:50%`};width:${Math.abs(v) / maxAbs * 50}%;background:${v >= 0 ? 'var(--up)' : 'var(--down)'}"></span></div>` : ''}</td>
       ${['LAST', '1M', '3M', 'YTD', '1Y', '3Y', '5Y'].map(k => `<td class="${S.fundSort === k ? 'on' : ''}">${pc(m.r[k], k === 'LAST' ? 2 : 1)}</td>`).join('')}
       <td class="${S.fundSort === 'risk' ? 'on' : ''}">${m.risk ? nf(m.risk.sd * 100, 1) + '%' : '—'}</td><td class="down">${m.mdd != null ? pct(m.mdd, 1) : '—'}</td><td class="down">${m.risk ? pct(m.risk.worst, 1) : '—'}</td>
       <td class="${S.fundSort === 'score' ? 'on' : ''}">${m.score != null ? nf(m.score, 2) : '—'}</td><td class="mono">${nf(m.nav, 4)}</td></tr>`; }).join('')}
@@ -1002,7 +1038,7 @@ function renderFunds() {
     <div id="fChart"></div><div class="legend" id="fLegend"></div>
   </div>
   <p class="note">ข้อมูลย้อนหลังช่วยให้เห็นลักษณะของแต่ละแผน ไม่ได้บอกผลตอบแทนในอนาคต การเปลี่ยนแผนควรดูระยะเวลาก่อนเกษียณและความเสี่ยงที่รับได้ประกอบ</p>`;
-  drawFundChart(); drawRR(M, held);
+  drawFundChart(); drawRR(M, held, band);
 }
 function simCard(held) {
   if (!T.length) return `<div class="card" style="margin-top:12px"><h3>ถ้าใช้แผนอื่น จะได้เท่าไร</h3><p class="note" style="margin:4px 0 0">นำเข้า PDF ก่อน แล้วแอปจะจำลองให้ว่าถ้าเงินของคุณอยู่ในแต่ละแผน จะมีมูลค่าเท่าไรเทียบกับของจริง</p></div>`;
@@ -1024,7 +1060,7 @@ function simCard(held) {
     <p class="note" style="margin:0">"ประมาณ" คือช่วงที่ไม่มี NAV ของแผนนั้นในวันที่เงินเข้า จึงประมาณจาก NAV ก่อนและหลัง ${skipped.length ? `แผนที่ไม่มีข้อมูลครบช่วงนี้จึงไม่แสดง: ${esc(skipped.join(', '))} ลองเลือกช่วงที่สั้นลง` : ''}</p>
   </div>`;
 }
-function drawRR(M, held) {
+function drawRR(M, held, band) {
   const el = $('#rrChart'); if (!el) return; const pts = M.filter(m => m.risk && (m.r['3Y'] || m.r['1Y'])).map(m => ({p: m.p, x: m.risk.sd, y: (m.r['3Y'] || m.r['1Y']).r, full: !!m.r['3Y']}));
   if (!pts.length) { el.innerHTML = ''; return; }
   const W = Math.max(280, el.clientWidth || 340), H = 240, pl = 36, pr = 12, pt = 10, pb = 28;
@@ -1033,6 +1069,7 @@ function drawRR(M, held) {
   let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="ผลตอบแทนเทียบความผันผวน">`;
   for (const v of niceTicks(y0, y1, 4)) s += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line-2)"/><text x="${pl - 5}" y="${Y(v) + 4}" font-size="10" fill="var(--muted)" text-anchor="end">${Math.round(v * 100)}%</text>`;
   for (const v of niceTicks(0, x1, 4)) s += `<text x="${X(v)}" y="${H - 12}" font-size="10" fill="var(--muted)" text-anchor="middle">${Math.round(v * 100)}%</text>`;
+  if (band) { const bx = X(Math.min(band.max, x1)), b0 = X(Math.min(band.min, x1)); s += `<rect x="${b0}" y="${pt}" width="${Math.max(0, bx - b0)}" height="${H - pt - pb}" fill="var(--up)" fill-opacity=".09"/><line x1="${bx}" x2="${bx}" y1="${pt}" y2="${H - pb}" stroke="var(--up)" stroke-dasharray="3 3"/>${band.min ? `<line x1="${b0}" x2="${b0}" y1="${pt}" y2="${H - pb}" stroke="var(--up)" stroke-dasharray="3 3"/>` : ''}<text x="${(b0 + bx) / 2}" y="${H - pb - 4}" font-size="10" fill="var(--up)" text-anchor="middle">ช่วงที่เหมาะกับคุณ</text>`; }
   s += `<text x="${W - pr}" y="${H - 1}" font-size="10" fill="var(--muted)" text-anchor="end">ผันผวน/ปี →</text>`;
   const boxes = []; let dots = '', labels = '';
   for (const p of pts) { const mine = held.includes(p.p); dots += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${mine ? 6 : 4.5}" fill="${p.full ? (mine ? 'var(--accent)' : 'var(--ink-2)') : 'var(--surface)'}" stroke="${mine ? 'var(--accent)' : 'var(--ink-2)'}" stroke-width="1.6"><title>${esc(p.p)}: ${pct(p.y, 1)} / ${nf(p.x * 100, 1)}%</title></circle>`; boxes.push({x0: X(p.x) - 6, x1: X(p.x) + 6, y0: Y(p.y) - 6, y1: Y(p.y) + 6}); }
@@ -1223,13 +1260,14 @@ function sheetSettings() {
   const st = S.user.settings;
   openSheet('ตั้งค่า', `<div class="stack">
     <div class="field"><label>ธีม</label><div class="seg">${[['system', 'ตามเครื่อง'], ['light', 'สว่าง'], ['dark', 'มืด']].map(([k, l]) => `<button data-theme-set="${k}" aria-pressed="${(st.theme || 'system') === k}">${l}</button>`).join('')}</div></div>
+    <div class="field"><label for="retIn">ปีที่จะเกษียณ (พ.ศ.)</label><input class="inp num" id="retIn" type="number" inputmode="numeric" placeholder="เช่น 2595" value="${st.retireYear || ''}"><span class="hint">ข้าราชการเกษียณ 30 ก.ย. ของปีที่อายุครบ 60 (เกิด ต.ค.–ธ.ค. เกษียณปีถัดไป) ใช้ในหน้ากองทุน</span></div>
     <div class="field"><label for="oomIn">อัตราออมเพิ่ม (% ของเงินเดือน)</label><input class="inp num" id="oomIn" type="number" min="0" max="27" step="1" value="${st.oomperm || 0}"><span class="hint">ใช้แสดงในหน้าแรกและข้อมูลอ้างอิง ไม่มีผลต่อการคำนวณ</span></div>
     <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
     <button class="btn block" id="setSave">บันทึก</button>
     <p class="note">GPF Journal ใช้ข้อมูลจากใบแจ้งยอดของคุณและ NAV ที่ กบข. เผยแพร่ ตัวเลขทางการให้ยึดตามแอป My GPF</p></div>`, b => {
     b.querySelectorAll('[data-theme-set]').forEach(x => x.addEventListener('click', () => { st.theme = x.dataset.themeSet; applyTheme(); b.querySelectorAll('[data-theme-set]').forEach(y => y.setAttribute('aria-pressed', y === x)); }));
-    $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
+    $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; { const y = +$('#retIn').value; st.retireYear = y >= curYearBE() && y <= curYearBE() + 45 ? y : null; } await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
     $('#bkOut').addEventListener('click', doBackup);
     $('#bkIn').addEventListener('change', e => restoreBackup(e.target.files[0]));
   });
@@ -1292,6 +1330,8 @@ document.addEventListener('click', async e => {
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
   if (act === 'backup') return doBackup();
+  if (act === 'settings') return sheetSettings();
+  if (act === 'retsave') { const y = +($('#retQuick')?.value || 0); if (!(y >= curYearBE() && y <= curYearBE() + 45)) return toast(`ใส่ปี พ.ศ. ระหว่าง ${curYearBE()}–${curYearBE() + 45}`); S.user.settings.retireYear = y; await saveUser(); toast('บันทึกปีเกษียณแล้ว'); return; }
   if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
 });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') { drawFundChart(); renderFunds(); } if (S.tab === 'history') render(); }, 150); });
