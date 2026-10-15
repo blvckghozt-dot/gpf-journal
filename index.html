@@ -714,11 +714,45 @@ const DL_GUIDE = `<ol class="guide"><li>เปิดแอป <b>My GPF</b> → 
   <li>แท็บ <b>ตามประเภทเงินนำส่ง</b>: ทุกปี กด <b>ดาวน์โหลด</b> ทั้ง 2 ปุ่ม คือ "ดูยอดเงิน" และ "ดูรายละเอียดรายการ"</li>
   <li>แท็บ <b>ตามแผนการลงทุน</b>: ทุกปี กด <b>ดาวน์โหลด</b> ที่ "ดูรายละเอียดรายการ" <span class="pill warn">สำคัญที่สุด</span></li>
   <li>รวม 3 ไฟล์ต่อปี × 5 ปี = 15 ไฟล์ แล้วกดนำเข้า PDF เลือกทั้งหมดพร้อมกัน</li></ol>`;
+function dataChecklist() {
+  const L = S.ledger; if (!L?.txns?.length) return [];
+  const it = []; const iss = ledgerIssues(L); const bad = iss.find(i => i.level === 'bad');
+  const ys = [...new Set(L.txns.map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
+  it.push(bad ? {st: 'bad', t: 'ไฟล์ "ตามแผนการลงทุน" ยังไม่ครบ', d: bad.text, act: 'import', btn: 'นำเข้าเพิ่ม'} : {st: 'ok', t: `ไฟล์ "ตามแผนการลงทุน" ${ys[0]}–${ys[ys.length - 1]}`, d: 'ใช้คำนวณหน่วยและมูลค่าทุกแผน'});
+  const o = L.opening;
+  if (o) it.push(o.approx || o.noSummary ? {st: 'warn', t: 'ยอดยกมาเป็นค่าประมาณ', d: o.noSummary ? 'ยังไม่มีไฟล์ "ดูยอดเงิน" (BalanceTransaction) ของปีแรก นำเข้าเพิ่มเพื่อให้เงินต้นยกมาแม่นยำ' : 'ถือหลายแผนพร้อมกันตั้งแต่ก่อนช่วง 5 ปี แอปจึงแบ่งหน่วยตามสัดส่วนเงินนำส่ง ถ้าหน่วยรวมไม่ตรง ยอดสิ้นปีจะไม่ขึ้น ✓ ให้ตรวจและแก้ในหน้ายอดยกมา', act: o.noSummary ? 'import' : 'opening', btn: o.noSummary ? 'นำเข้า' : 'ตรวจยอดยกมา'} : {st: 'ok', t: `ยอดยกมา ณ ${thd(o.date)} ตรวจกับใบสรุปยอดแล้ว`, d: 'เงินที่สะสมก่อนช่วงไฟล์ นับรวมเรียบร้อย'});
+  const sums = (L.summary || []).filter(x => x.total && x.asOf).sort((a, b) => a.asOf.localeCompare(b.asOf)); const last = sums[sums.length - 1];
+  if (!last) it.push({st: 'warn', t: 'ยังไม่มีไฟล์ "ดูยอดเงิน"', d: 'ใช้ตรวจว่ายอดในแอปตรงกับ กบข. และใช้แยกเงินสะสม/สมทบ/ชดเชย', act: 'import', btn: 'นำเข้า'});
+  else { const at = d2t(last.asOf); const v = valueAt(at).value; const stale = Object.keys(holdingsAt(at)).some(p => { const n = navAt(p, at); return n && at - n.t > 4 && n.src !== 'summary'; }); const diff = r2(v - last.total[2]);
+    it.push(stale ? {st: 'info', t: `รอ NAV ถึง ${thd(last.asOf)} เพื่อเทียบกับใบสรุปยอดล่าสุด`, d: 'NAV อัปเดตอัตโนมัติวันละ 2 รอบ'} : Math.abs(diff) < 1 ? {st: 'ok', t: `ยอดตรงกับใบสรุปยอด ${thd(last.asOf)}`, d: `${money(last.total[2])}`} : {st: 'warn', t: `ยอดต่างจากใบสรุปยอด ${thd(last.asOf)} ${moneyN(diff, 2, true)} บาท`, d: 'มักเกิดจากไฟล์บางปีขาด หรือมีรายการหลังวันที่ในไฟล์ ลองนำเข้าไฟล์ปีปัจจุบันใหม่', act: 'import', btn: 'นำเข้า'}); }
+  const dys = [...new Set((L.detail || []).map(x => +x.date.slice(0, 4)))]; const miss = ys.filter(y => !dys.includes(y));
+  if (miss.length && !last) it.push({st: 'info', t: `ไฟล์ "รายละเอียดตามประเภทเงิน" ยังไม่มีปี ${miss.join(', ')}`, d: 'ไม่บังคับ ใช้แสดงเงินที่รัฐสมทบรายเดือน', act: 'import', btn: 'นำเข้า'});
+  const lastTx = [...T].reverse().find(x => x.kind === 'contrib'); const age = lastTx ? d2t(todayD()) - lastTx.t : 999;
+  if (age > 35) it.push({st: 'warn', t: `เงินนำส่งล่าสุดในแอป ${lastTx ? thd(lastTx.date) : '—'}`, d: 'ถ้ามีเงินนำส่งเดือนใหม่แล้ว บันทึกเงินนำส่ง หรือโหลดไฟล์ปีปัจจุบันจาก My GPF มานำเข้าใหม่', act: 'contrib', btn: 'บันทึก'});
+  else it.push({st: 'ok', t: `เงินนำส่งล่าสุด ${thd(lastTx.date)}`, d: 'ทุกเดือนบันทึกเงินนำส่ง หรือนำเข้าไฟล์ปีปัจจุบันใหม่'});
+  it.push(S.user.settings.retireYear ? {st: 'ok', t: `ปีเกษียณ ${S.user.settings.retireYear}`, d: 'ใช้แนะนำระดับความเสี่ยงในหน้ากองทุน'} : {st: 'info', t: 'ยังไม่ได้ใส่ปีที่จะเกษียณ', d: 'ใช้บอกระดับความเสี่ยงที่เหมาะ แผนที่เข้ากับคุณ และประมาณเงินตอนเกษียณ', act: 'settings', btn: 'ใส่ปี'});
+  return it;
+}
+function checklistCard(force) {
+  const it = dataChecklist(); if (!it.length) return '';
+  const open = it.filter(x => x.st !== 'ok'); const sig = open.map(x => x.t).join('|');
+  if (!force && (!open.length || store.get('chkDismiss', '') === sig)) return '';
+  const ic = {ok: ['✓', 'ok'], warn: ['!', 'warn'], bad: ['!', 'bad'], info: ['i', 'acc']};
+  return `<div class="card stack" style="margin-top:8px"><div class="row between"><div><div class="eyebrow">ความครบถ้วนของข้อมูล</div><h3>${open.length ? `อีก ${open.length} อย่างเพื่อให้ตัวเลขแม่นยำสมบูรณ์` : 'ข้อมูลครบถ้วนแล้ว'}</h3></div>${open.length && !force ? `<button class="btn ghost" data-act="chkhide" data-sig="${esc(sig)}" style="padding:4px 0">ซ่อน</button>` : ''}</div>
+    ${it.map(x => `<div class="li"><div class="ic"><span class="pill ${ic[x.st][1]}" style="padding:2px 7px">${ic[x.st][0]}</span></div><div class="body"><div class="t">${esc(x.t)}</div><div class="s">${esc(x.d)}</div></div>${x.act ? `<button class="btn ghost" data-act="${x.act}" style="padding:0 2px;white-space:nowrap">${x.btn}</button>` : ''}</div>`).join('')}</div>`;
+}
 function onboarding() {
   return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
   <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div>${DL_GUIDE}<div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี ไฟล์ชื่อ TransactionUnitDetail_…) และ "ยอดเงินตามประเภทเงินสะสม" (BalanceTransaction_…) ของปีเดียวกัน แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
   <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
   <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
+  <div class="verdict"><b>หลังนำเข้าแล้ว ข้อมูลที่ช่วยให้ตัวเลขแม่นยำสมบูรณ์</b><ul class="guide" style="margin-top:6px">
+    <li><b>ไฟล์ "ดูยอดเงิน" ของปีแรก</b> สำคัญมากถ้าเป็นสมาชิกนานกว่า 5 ปี ใช้คำนวณยอดยกมาและตรวจยอดสิ้นปี</li>
+    <li><b>ไฟล์ปีปัจจุบันที่โหลดล่าสุด</b> ยิ่งโหลดใกล้วันนี้ รายการเงินนำส่งยิ่งครบ (โหลดใหม่ได้เรื่อย ๆ แอปจะแทนที่ปีเดิม)</li>
+    <li><b>ปีที่จะเกษียณ</b> ใส่ในตั้งค่า ใช้แนะนำระดับความเสี่ยงและประมาณเงินตอนเกษียณ</li>
+    <li><b>ถ้าถือหลายแผนพร้อมกันตั้งแต่ก่อนช่วง 5 ปี และไม่เคยย้ายออก</b> แอปจะประมาณการแบ่งหน่วยให้ ตรวจได้ที่ บันทึก → ยอดยกมา</li>
+    <li><b>ทุกเดือน</b> บันทึกเงินนำส่ง หรือโหลดไฟล์ปีปัจจุบันมานำเข้าใหม่</li></ul>
+    <p class="note" style="margin:6px 0 0">หลังนำเข้า หน้าแรกจะมีรายการ "ความครบถ้วนของข้อมูล" บอกว่ายังขาดอะไร</p></div>
   <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
   <p class="note" style="margin:0">ระหว่างนี้ดูหน้า "กองทุน" เพื่อจัดอันดับและเทียบผลตอบแทนทุกแผนได้เลย</p></div>`;
 }
@@ -765,6 +799,7 @@ function renderHome() {
       <div><div class="k">ต่อปี (IRR${st.all.irrSince ? ' ตั้งแต่ ' + thd(st.all.irrSince) : ''})</div><div class="v ${cls(st.all.irr || 0)}">${pct(st.all.irr)}</div></div>
     </div>
   </div>
+  ${checklistCard(false)}
   <div class="sec-h"><h2>ผลตอบแทนตามช่วงเวลา</h2><button class="link" data-act="explain">วิธีคิด</button></div>
   <div class="periods">${['week', 'month', 'ytd', 'all'].filter(k => st[k]).map(k => { const s = st[k]; return `<button class="period" data-explain="${k}"><span class="k"><span>${s.label}</span><span>›</span></span><span class="v ${cls(s.gain)}">${money(s.gain, 2, true)}</span><span class="p ${cls(s.gain)}">${pct(s.r)}</span><span class="s">${k === 'all' ? 'จากเงินต้น ' + money(s.C, 0) : 'เทียบ ' + thd(s.since)}${s.C && k !== 'all' ? ' · นำส่ง ' + money(s.C, 0) : ''}</span></button>`; }).join('')}</div>
   <div class="sec-h"><h2>แนวโน้มพอร์ต</h2></div>
@@ -1133,6 +1168,7 @@ function renderRecord() {
     ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
     ${toolBtn('switch', 'แจ้งเปลี่ยนแผน', 'ย้ายทั้งพอร์ตไปแผนใหม่หรือผสมเอง', '<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}
     ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
+    ${S.ledger?.txns?.length ? toolBtn('checklist', 'ความครบถ้วนของข้อมูล', (() => { const o = dataChecklist().filter(x => x.st !== 'ok').length; return o ? `ยังขาด ${o} อย่าง` : 'ครบถ้วนแล้ว'; })(), '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>') : ''}
     ${S.ledger?.opening ? toolBtn('opening', 'ยอดยกมา', `${thd(S.ledger.opening.date, true)} · ${S.ledger.opening.source === 'manual' ? 'แก้เอง' : 'คำนวณอัตโนมัติ'}${S.ledger.opening.approx ? ' · ค่าประมาณ' : ''}`, '<path d="M4 6h16M4 12h10M4 18h6"/>') : ''}
     ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.txns?.length ? coverageText(S.ledger) : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
   </div>
@@ -1414,6 +1450,8 @@ document.addEventListener('click', async e => {
   const act = b.dataset.act;
   if (act === 'backup') return doBackup();
   if (act === 'opening') return sheetOpening();
+  if (act === 'chkhide') { store.set('chkDismiss', b.dataset.sig); render(); return; }
+  if (act === 'checklist') return openSheet('ความครบถ้วนของข้อมูล', checklistCard(true));
   if (act === 'settings') return sheetSettings();
   if (act === 'retsave') { const y = +($('#retQuick')?.value || 0); if (!(y >= curYearBE() && y <= curYearBE() + 45)) return toast(`ใส่ปี พ.ศ. ระหว่าง ${curYearBE()}–${curYearBE() + 45}`); S.user.settings.retireYear = y; await saveUser(); toast('บันทึกปีเกษียณแล้ว'); return; }
   if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
