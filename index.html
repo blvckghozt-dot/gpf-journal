@@ -709,7 +709,7 @@ function emptyPortfolio(el) {
 }
 function onboarding() {
   return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
-  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ขอไฟล์ PDF จากแอป My GPF</div><div class="s">เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ทุกปีที่เป็นสมาชิก (สำคัญที่สุด) จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
+  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ขอไฟล์ PDF จากแอป My GPF</div><div class="s">เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ทุกปีตั้งแต่ปีแรกที่เป็นสมาชิก (สำคัญที่สุด ไฟล์ชื่อ TransactionUnitDetail_…_ปี ค.ศ.) จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
   <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
   <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
   <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
@@ -740,6 +740,7 @@ function renderHome() {
   el.innerHTML = `
   ${!SA && S.mode === 'local' && S.ledger ? `<div class="banner" style="margin-top:8px">กำลังแสดงข้อมูลที่จำไว้ในเครื่องนี้ การบันทึกใหม่จะเก็บในเครื่องนี้เท่านั้น</div>` : ''}
   ${SA && backupDue() ? `<div class="banner info" style="margin-top:8px"><span>ไม่ได้สำรองข้อมูลมา ${backupDue()} วัน ข้อมูลอยู่ในเบราว์เซอร์นี้เครื่องเดียว</span><button class="btn ghost" data-act="backup" style="margin-left:auto;padding:0 4px">สำรอง</button></div>` : ''}
+  ${ledgerIssues(S.ledger).filter(i => i.level === 'bad').map(i => `<div class="banner" style="margin-top:8px;background:var(--down-soft)"><span>${esc(i.text)}</span><button class="btn ghost" data-act="import" style="margin-left:auto;padding:0 4px;white-space:nowrap">นำเข้าเพิ่ม</button></div>`).join('')}
   ${statusPend ? `<div class="banner" style="margin-top:8px"><span>มี ${statusPend} รายการที่ใช้ NAV ประมาณการ เพราะ กบข. ยังไม่ประกาศราคาของวันนั้น ยอดจะปรับเองเมื่ออัปเดต NAV</span></div>` : ''}
   ${waiting ? `<div class="banner info" style="margin-top:8px"><span>มี ${waiting} รายการที่บันทึกล่วงหน้า จะรวมในพอร์ตเมื่อมี NAV ถึงวันนั้น</span></div>` : ''}
   <div class="card hero" style="margin-top:8px">
@@ -1121,7 +1122,7 @@ function renderRecord() {
     ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
     ${toolBtn('switch', 'แจ้งเปลี่ยนแผน', 'ย้ายทั้งพอร์ตไปแผนใหม่หรือผสมเอง', '<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}
     ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
-    ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.files?.length ? `นำเข้าแล้ว ${S.ledger.files.length} ไฟล์ · ${S.ledger.txns.length} รายการ` : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
+    ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.txns?.length ? coverageText(S.ledger) : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
   </div>
   <div class="sec-h"><h2>รายการที่บันทึกเอง</h2><span class="note">${ents.length} รายการ</span></div>
   <div class="card">${ents.length ? ents.map(e => `<div class="li"><div class="ic ${e.type === 'switch' ? 'sw' : 'in'}">${e.type === 'switch' ? '⇄' : e.type === 'units' ? '±' : '+'}</div><div class="body"><div class="t">${e.type === 'contrib' ? 'เงินนำส่ง ' + moneyN(e.amount) : e.type === 'switch' ? 'เปลี่ยนแผน → ' + esc(Object.keys(e.to || {}).map(sh).join(' + ')) : 'ปรับหน่วยให้ตรง My GPF'} ${stt[e._status] || ''} ${e._est && e._status === 'ok' ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(e.date, true)}${e._rows?.length ? ' · ' + e._rows.map(r => `${sh(r.plan)} ${r.units > 0 ? '+' : ''}${nf(r.units, 4)} หน่วย`).join(', ') : ''}</div></div><button class="btn ghost" data-del="${e.id}" aria-label="ลบรายการ">ลบ</button></div>`).join('') : '<p class="note" style="margin:0">เดือนที่ยังไม่มีใน PDF ให้บันทึกที่นี่ เมื่อนำเข้า PDF ปีใหม่ แอปจะใช้ตัวเลขจาก PDF แทนอัตโนมัติ</p>'}</div>
@@ -1229,7 +1230,7 @@ async function readPdf(file) {
   return pages;
 }
 function sheetImport() {
-  openSheet('นำเข้า PDF จาก My GPF', `<div class="stack"><p class="note" style="margin:0">เลือกได้หลายไฟล์พร้อมกัน รองรับ 3 แบบจากเมนูใบแจ้งยอดในแอป My GPF: <b>รายการเคลื่อนไหวตามแผนการลงทุน</b> (สำคัญที่สุด ใช้คำนวณหน่วย), <b>ตามประเภทเงิน</b> และ <b>สรุปยอดเงินสมาชิก</b> ไฟล์ปีที่เคยนำเข้าจะถูกแทนที่ด้วยไฟล์ใหม่</p>
+  openSheet('นำเข้า PDF จาก My GPF', `<div class="stack"><p class="note" style="margin:0">เลือกได้หลายไฟล์พร้อมกัน รองรับ 3 แบบจากเมนูใบแจ้งยอดในแอป My GPF: <b>รายการเคลื่อนไหวตามแผนการลงทุน</b> (สำคัญที่สุด ใช้คำนวณหน่วย), <b>ตามประเภทเงิน</b> และ <b>สรุปยอดเงินสมาชิก</b> ไฟล์ปีที่เคยนำเข้าจะถูกแทนที่ด้วยไฟล์ใหม่ ส่วนปีอื่นยังอยู่ครบ จึงนำเข้าเพิ่มทีละปีได้</p>${S.ledger?.txns?.length ? `<div class="note">ตอนนี้มีข้อมูล: ${coverageText(S.ledger)}</div>` : ''}
     <label class="btn block" for="pdfIn">เลือกไฟล์ PDF</label><input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden><div id="pdfRes"></div></div>`, b => {
     $('#pdfIn').addEventListener('change', async e => {
       const files = [...e.target.files]; const out = []; $('#pdfRes').innerHTML = '<p class="note">กำลังอ่านไฟล์…</p>';
@@ -1237,11 +1238,31 @@ function sheetImport() {
       const lab = {plan: 'ตามแผนการลงทุน', detail: 'ตามประเภทเงิน', summary: 'สรุปยอด', unknown: 'ไม่รู้จักรูปแบบ', error: 'อ่านไม่ได้'};
       const yrs = r => r.rows ? [...new Set(r.rows.map(x => x.date?.slice(0, 4)).filter(Boolean))].join(', ') : (r.summary?.year || '');
       $('#pdfRes').innerHTML = `<div class="card stack">${out.map(r => `<div><div class="row between"><b style="font-size:14px;word-break:break-all">${esc(r.name)}</b><span class="pill ${['plan', 'detail', 'summary'].includes(r.kind) ? 'ok' : 'bad'}">${lab[r.kind]}</span></div><div class="note">${r.rows ? `${r.rows.length} รายการ · ปี ${yrs(r)}` : r.summary ? `ปี ${r.summary.year} · ยอด ${moneyN(r.summary.total?.[2])} ณ ${thd(r.summary.asOf)}` : ''}</div>${r.warns.slice(0, 3).map(w => `<div class="note" style="color:var(--warn)">${esc(w)}</div>`).join('')}</div>`).join('')}
+        ${(() => { const M2 = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); const iss = ledgerIssues(M2); return `<div class="note">หลังรวมแล้วจะมีข้อมูล: ${coverageText(M2)}</div>${iss.map(i => `<div class="banner" style="background:var(--${i.level === 'bad' ? 'down' : 'warn'}-soft)">${esc(i.text)}</div>`).join('')}`; })()}
         <div id="pdfCheck"></div><button class="btn block" id="pdfSave" ${out.some(r => ['plan', 'detail', 'summary'].includes(r.kind)) ? '' : 'disabled'}>รวมเข้าพอร์ต</button></div>`;
       $('#pdfSave')?.addEventListener('click', async () => { const L = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); await saveLedger(L); closeSheet(); toast(`นำเข้าแล้ว · ${L.txns.length} รายการ`); });
     });
   });
 }
+function ledgerIssues(L) {
+  const out = []; if (!L || !L.txns?.length) return out;
+  const tx = [...L.txns].sort((a, b) => a.date.localeCompare(b.date) || (a.amount < 0 ? -1 : 1));
+  const planYears = [...new Set(tx.map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
+  const detYears = [...new Set((L.detail || []).map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
+  const sumYears = (L.summary || []).map(x => x.year).filter(Boolean).sort((a, b) => a - b);
+  const u = {}; let neg = null;
+  for (const x of tx) { u[x.plan] = (u[x.plan] || 0) + x.units; if (!neg && u[x.plan] < -0.01) neg = {plan: x.plan, date: x.date}; }
+  const first = planYears[0], last = planYears[planYears.length - 1];
+  const gaps = []; for (let y = first; y <= last; y++) if (!planYears.includes(y)) gaps.push(y);
+  const earliest = Math.min(...[first, ...sumYears, ...detYears].filter(Boolean));
+  const before = []; if (neg) { for (let y = Math.min(earliest, first - 1); y < first; y++) before.push(y); if (!before.length) before.push(first - 1); }
+  const missing = [...before, ...gaps];
+  if (neg) out.push({level: 'bad', text: `หน่วยของแผน${neg.plan}ติดลบเมื่อ ${thd(neg.date, true)} แปลว่ายังขาดไฟล์ "ตามแผนการลงทุน" ${before.length > 1 ? `ปี ${before[0]}–${before[before.length - 1]}` : `ปี ${before[0]} และปีก่อนหน้า (ย้อนไปถึงปีที่เริ่มเป็นสมาชิก)`} ในแอป My GPF ไฟล์ชื่อลงท้ายด้วยปี ค.ศ. เช่น TransactionUnitDetail_…_${before[before.length - 1] - 543}.pdf คือปี ${before[before.length - 1]} ตัวเลขพอร์ตจะยังไม่ถูกต้องจนกว่าจะนำเข้าครบ`, years: missing});
+  if (gaps.length) out.push({level: 'bad', text: `ไฟล์ "ตามแผนการลงทุน" ขาดปี ${gaps.join(', ')}`, years: gaps});
+  const detMiss = planYears.filter(y => !detYears.includes(y)); if (detYears.length && detMiss.length) out.push({level: 'warn', text: `ไฟล์ "ตามประเภทเงิน" ยังไม่มีปี ${detMiss.join(', ')} ส่วน "ใครออมให้คุณ" จะนับไม่ครบ`});
+  return out;
+}
+function coverageText(L) { const ys = a => { a = [...new Set(a)].sort((x, y) => x - y); return a.length ? (a.length > 1 ? `${a[0]}–${a[a.length - 1]}` : String(a[0])) : '—'; }; return `ตามแผนการลงทุน ${ys((L.txns || []).map(x => +x.date.slice(0, 4)))} · ตามประเภทเงิน ${ys((L.detail || []).map(x => +x.date.slice(0, 4)))} · สรุปยอด ${ys((L.summary || []).map(x => x.year))}`; }
 function mergeLedger(L, results) {
   L = JSON.parse(JSON.stringify(L)); L.files ||= [];
   for (const r of results) {
