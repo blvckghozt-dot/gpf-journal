@@ -585,6 +585,11 @@ function buildTxns() {
   const order = {opening: -1, switch_out: 0, switch_in: 1, adjust: 2, contrib: 3};
   const sortT = () => T.sort((a, b) => a.t - b.t || (order[a.kind] ?? 9) - (order[b.kind] ?? 9));
   sortT();
+  // reconcile with My GPF unit statements: if parsed rows don't add up, adjust units to match the statement
+  S.unitFixes = [];
+  for (const u of [...(S.ledger?.units || [])].sort((a, b) => a.asOf.localeCompare(b.asOf))) { const ut = d2t(u.asOf); sortT(); const h = holdingsAt(ut);
+    for (const p of new Set([...Object.keys(h), ...Object.keys(u.rows)])) { const diff = r4((u.rows[p]?.units || 0) - (h[p] || 0)); if (Math.abs(diff) >= 0.0005) { T.push({date: u.asOf, t: ut, kind: 'adjust', plan: p, nav: u.rows[p]?.nav || navAt(p, ut)?.v || 0, units: diff, amount: 0, src: 'unitsfix'}); S.unitFixes.push({date: u.asOf, plan: p, diff}); } } }
+  sortT();
   const pdfContrib = T.filter(x => x.kind === 'contrib').map(x => x.t), pdfSwitch = T.filter(x => x.kind === 'switch_in').map(x => x.t);
   const lastPdf = T.length ? T[T.length - 1].t : -1;
   const ents = [...S.user.entries].sort((a, b) => d2t(a.date) - d2t(b.date));
@@ -742,6 +747,8 @@ function dataChecklist() {
   else { const at = d2t(last.asOf); const v = valueAt(at).value; const stale = Object.keys(holdingsAt(at)).some(p => { const n = navAt(p, at); return n && at - n.t > 4 && n.src !== 'summary'; }); const diff = r2(v - last.total[2]);
     it.push(stale ? {st: 'info', t: `รอ NAV ถึง ${thd(last.asOf)} เพื่อเทียบกับใบสรุปยอดล่าสุด`, d: 'NAV อัปเดตอัตโนมัติวันละ 2 รอบ'} : Math.abs(diff) < 1 ? {st: 'ok', t: `ยอดตรงกับใบสรุปยอด ${thd(last.asOf)}`, d: `${money(last.total[2])}`} : {st: 'warn', t: `ยอดต่างจากใบสรุปยอด ${thd(last.asOf)} ${moneyN(diff, 2, true)} บาท`, d: 'มักเกิดจากไฟล์บางปีขาด หรือมีรายการหลังวันที่ในไฟล์ ลองนำเข้าไฟล์ปีปัจจุบันใหม่', act: 'import', btn: 'นำเข้า'}); }
   const us = (L.units || []); const lu = us[us.length - 1];
+  if (S.unitFixes?.length) { const by = {}; for (const f of S.unitFixes) (by[f.date] ||= []).push(`${sh(f.plan)} ${f.diff > 0 ? '+' : ''}${nf(f.diff, 4)}`);
+    it.push({st: 'warn', t: `ปรับจำนวนหน่วยให้ตรงกับไฟล์จำนวนหน่วยแล้ว ${Object.keys(by).length} ครั้ง`, d: `รายการบางบรรทัดในไฟล์ "ตามแผนการลงทุน" อ่านได้ไม่ครบ แอปจึงปรับหน่วยให้ตรงกับ My GPF ณ วันที่ในไฟล์จำนวนหน่วย: ${Object.entries(by).map(([d, a]) => `${thd(d)} (${a.join(', ')})`).join(' · ')} ยอดคงเหลือถูกต้อง แต่ผลตอบแทนในช่วงก่อนวันที่ปรับอาจคลาดเล็กน้อย`}); }
   if (lu) { const h = holdingsAt(d2t(lu.asOf)); const bad = Object.entries(lu.rows).filter(([p, r]) => Math.abs((h[p] || 0) - r.units) > 0.001).concat(Object.keys(h).filter(p => !lu.rows[p] && h[p] > 0.001).map(p => [p, {units: 0}]));
     it.push(bad.length ? {st: 'warn', t: `จำนวนหน่วยต่างจาก My GPF ณ ${thd(lu.asOf)}`, d: bad.map(([p, r]) => `${sh(p)}: แอป ${nf(h[p] || 0, 4)} · My GPF ${nf(r.units, 4)}`).join(' / '), act: 'import', btn: 'นำเข้า'} : {st: 'ok', t: `จำนวนหน่วยตรงกับ My GPF ณ ${thd(lu.asOf)}`, d: Object.entries(lu.rows).map(([p, r]) => `${sh(p)} ${nf(r.units, 4)}`).join(', ')}); }
   else if (o && o.approx) it.push({st: 'info', t: 'แนะนำ: ไฟล์ "ดูยอดเงิน" ในแท็บตามแผนการลงทุน', d: 'บอกจำนวนหน่วยแต่ละแผนสิ้นปี ทำให้ยอดยกมาแม่นยำ ไม่ต้องประมาณ', act: 'import', btn: 'นำเข้า'});
