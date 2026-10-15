@@ -666,11 +666,12 @@ function barChart(el, items, opt = {}) { // items [{label, v, title}]
 }
 function niceTicks(a, b, n) { const span = b - a; if (span <= 0) return [a]; const step0 = span / n; const mag = Math.pow(10, Math.floor(Math.log10(step0))); const f = step0 / mag; const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag; const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
 function xTicks(a, b) { const span = b - a; const out = []; const s = new Date(a * 864e5), e = new Date(b * 864e5);
+  if (span <= 45) { const step = span <= 10 ? 2 : 7; for (let t = Math.ceil(a) + (span > 10 ? 3 : 1); t <= b - 1; t += step) out.push(t); return out; }
   if (span > 900) { for (let y = s.getUTCFullYear() + 1; y <= e.getUTCFullYear(); y++) out.push(Date.UTC(y, 0, 1) / 864e5); const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); }
   let m = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 1)); const stepM = span > 400 ? 3 : span > 150 ? 2 : 1;
   while (m <= e) { out.push(m / 864e5); m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + stepM, 1)); }
   const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); }
-function xLabel(t, span) { const d = new Date(t * 864e5); return span > 900 ? String(d.getUTCFullYear() + 543) : (d.getUTCMonth() === 0 ? `${MTH[0]} ${String(d.getUTCFullYear() + 543).slice(2)}` : MTH[d.getUTCMonth()]); }
+function xLabel(t, span) { const d = new Date(t * 864e5); if (span <= 45) return `${d.getUTCDate()} ${MTH[d.getUTCMonth()]}`; return span > 900 ? String(d.getUTCFullYear() + 543) : (d.getUTCMonth() === 0 ? `${MTH[0]} ${String(d.getUTCFullYear() + 543).slice(2)}` : MTH[d.getUTCMonth()]); }
 const kfmt = v => HIDE ? '•••' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
 
 /* ---------- views ---------- */
@@ -744,7 +745,7 @@ function renderHome() {
   <div class="periods">${['week', 'month', 'ytd', 'all'].filter(k => st[k]).map(k => { const s = st[k]; return `<button class="period" data-explain="${k}"><span class="k"><span>${s.label}</span><span>›</span></span><span class="v ${cls(s.gain)}">${money(s.gain, 2, true)}</span><span class="p ${cls(s.gain)}">${pct(s.r)}</span><span class="s">${k === 'all' ? 'จากเงินต้น ' + money(s.C, 0) : 'เทียบ ' + thd(s.since)}${s.C && k !== 'all' ? ' · นำส่ง ' + money(s.C, 0) : ''}</span></button>`; }).join('')}</div>
   <div class="sec-h"><h2>แนวโน้มพอร์ต</h2></div>
   <div class="card">
-    <div class="seg" role="group" aria-label="ช่วงเวลา">${[['3M', '3 เดือน'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี'], ['ALL', 'ทั้งหมด']].map(([k, l]) => `<button data-range="${k}" aria-pressed="${S.range === k}">${l}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="ช่วงเวลา">${[['1W', '1 สัปดาห์'], ['1M', '1 เดือน'], ['1Y', '1 ปี'], ['3Y', '3 ปี'], ['5Y', '5 ปี'], ['ALL', 'ทั้งหมด']].map(([k, l]) => `<button data-range="${k}" aria-pressed="${S.range === k}">${l}</button>`).join('')}</div>
     <div id="homeChart"></div>
     <div class="legend"><span><i style="background:var(--accent)"></i>มูลค่าพอร์ต</span><span><i class="dash"></i>เงินต้น</span><span><i style="background:var(--accent);width:8px;height:8px;transform:rotate(45deg);border-radius:1px"></i>เปลี่ยนแผน</span></div>
   </div>
@@ -774,12 +775,12 @@ function sumGov(t) {
   ${rows.map(r => `<div class="row between" style="font-size:13.5px;padding:3px 0"><span><span class="dot" style="background:${r[2]}"></span>${r[0]}</span><span class="num">${money(r[1])} <span class="muted">${(r[1] / tot * 100).toFixed(0)}%</span></span></div>`).join('')}
   <p class="note" style="margin:8px 0 0">ทุก 1 บาทที่คุณส่ง รัฐเติมให้อีก ${nf(gov / mine, 2)} บาท${extra.length ? ` · ไม่รวมรายการที่บันทึกเอง ${extra.length} เดือน` : ''}</p>`;
 }
-function rangeStart(t, r) { const d = new Date(t * 864e5); if (r === '3M') return t - 92; if (r === '1Y') return t - 366; if (r === '3Y') return t - 1096; if (r === 'YTD') return Date.UTC(d.getUTCFullYear() - 1, 11, 28) / 864e5; return -1e9; }
+function rangeStart(t, r) { const d = new Date(t * 864e5); if (r === '1W') return t - 7; if (r === '1M') return t - 31; if (r === '5Y') return t - 1827; if (r === '3M') return t - 92; if (r === '1Y') return t - 366; if (r === '3Y') return t - 1096; if (r === 'YTD') return Date.UTC(d.getUTCFullYear() - 1, 11, 28) / 864e5; return -1e9; }
 function drawHomeChart() {
   const el = $('#homeChart'); if (!el) return; const t = asOfT(); const a = rangeStart(t, S.range);
   let pts = SERIES.filter(s => s.t >= a && s.t <= t); const before = SERIES.filter(s => s.t < a).pop(); if (before && S.range !== 'ALL') pts = [before, ...pts];
   lineChart(el, {label: 'มูลค่าพอร์ตและเงินต้น', height: 200, yfmt: kfmt,
-    series: [{name: 'มูลค่า', color: 'var(--accent)', area: true, pts: pts.map(s => [s.t, s.value])}, {name: 'เงินต้น', color: 'var(--gold)', dash: true, width: 1.6, step: true, end: false, pts: pts.map(s => [s.t, s.principal])}],
+    series: [{name: 'มูลค่า', color: 'var(--accent)', area: true, pts: pts.map(s => [s.t, s.value])}, {name: 'เงินต้น', color: 'var(--gold)', dash: true, width: 1.6, step: true, end: false, pts: ['1W', '1M'].includes(S.range) ? [] : pts.map(s => [s.t, s.principal])}],
     markers: SW.map(s => ({t: s.t})),
     tip: (x) => { const s = SERIES.find(q => q.t === x) || pts.filter(q => q.t <= x).pop(); if (!s) return ''; const sw = SW.find(w => w.t === x); return `<b>${thd(s.date, true)}</b><br>มูลค่า ${money(s.value)}<br><span style="color:var(--gold)">เงินต้น ${money(s.principal)}</span><br>กำไร <span class="${cls(s.value - s.principal)}">${money(s.value - s.principal, 2, true)}</span>${sw ? `<br><span style="color:var(--accent)">เปลี่ยนแผน → ${sw.ins.map(i => sh(i.plan)).join(', ')}</span>` : ''}`; }});
 }
