@@ -340,6 +340,7 @@ function blocksOf(ws,leftMax){
 }
 function detectKind(allText){
   const t=ns(allText);
+  if(t.includes('ตามประเภทการลงทุน'))return 'units';
   if(t.includes('สรุปยอดเงินสมาชิก')||t.includes('จำนวนเงินทั้งหมด'))return 'summary';
   if(t.includes('ตามแผนการลงทุน'))return 'plan';
   if(t.includes('ตามประเภทเงิน'))return 'detail';
@@ -423,12 +424,25 @@ function parseSummary(pages){
   r.asOf=m?parseDate(m[1]+m[2]+m[3]):null; r.year=r.asOf?+r.asOf.slice(0,4):null;
   return r;
 }
+function parseUnits(pages,warn){
+  const ws=pages.flatMap(p=>words(p.items));
+  const lines={};for(const w of ws){const k=Math.round(w.y/3);(lines[k]=lines[k]||[]).push(w);}
+  const L=Object.keys(lines).map(Number).sort((a,b)=>a-b).map(k=>lines[k].sort((a,b)=>a.x0-b.x0));
+  const rows={};let prevTxt='';
+  for(const l of L){const nums=l.filter(w=>/^-?[\d,]+\.\d+$/.test(w.text));const txt=l.filter(w=>!/^-?[\d,]+\.\d+$/.test(w.text)).map(w=>w.text).join(' ');
+    if(nums.length>=3&&!ns(txt).includes('จำนวนเงินทั้งหมด')){const v=nums.slice(-3).map(w=>num(w.text));const plan=matchPlan(txt)||matchPlan(prevTxt+' '+txt);if(!plan){warn&&warn('อ่านชื่อแผนไม่ได้: '+txt);continue;}
+      let [units,nav,value]=v;if(Math.abs(units*nav-value)>Math.max(1,value*1e-3))warn&&warn(`แผน${plan}: หน่วย×NAV ไม่เท่ามูลค่า`);rows[plan]={units,nav,value};}
+    prevTxt=nums.length?'':txt;}
+  const all=ns(ws.map(w=>w.text).join(' '));const m=all.match(/ณวันที่(\d{1,2})(\D+?)(\d{4})/);const t=all.match(/จำนวนเงินทั้งหมด([\d,]+\.\d\d)/);
+  return{asOf:m?parseDate(m[1]+m[2]+m[3]):null,rows,total:t?num(t[1]):null};
+}
 function parseGpf(pages,warn){
   const allText=pages.flatMap(p=>p.items.map(i=>i.str)).join('');
   const kind=detectKind(allText);
   if(kind==='plan')return{kind,rows:parsePlan(pages,warn)};
   if(kind==='detail')return{kind,rows:parseDetail(pages,warn)};
   if(kind==='summary')return{kind,summary:parseSummary(pages)};
+  if(kind==='units')return{kind,units:parseUnits(pages,warn)};
   return{kind};
 }
 const api={parseGpf,PLANS,MONTHS,parseDate,matchPlan};
@@ -541,6 +555,7 @@ function buildNav() {
   for (const [d, doc] of Object.entries(S.navDb)) { if (!doc || !doc.values) continue; dates.add(d); for (const [p, v] of Object.entries(doc.values)) add(p, d, v, doc.source || 'manual'); }
   if (S.ledger) {
     for (const t of S.ledger.txns) add(t.plan, t.date, t.nav, 'statement');
+    for (const u of S.ledger.units || []) for (const [p, r] of Object.entries(u.rows || {})) add(p, u.asOf, r.nav, 'statement');
   }
   for (const e of S.user.entries) if (e.nav) for (const [p, v] of Object.entries(e.nav)) add(p, e.date, v, 'entry');
   for (const p in NAV) NAV[p] = [...NAV[p].entries()].map(([d, o]) => ({d, t: d2t(d), v: o.v, src: o.src})).sort((a, b) => a.t - b.t);
@@ -712,19 +727,23 @@ function emptyPortfolio(el) {
 }
 const DL_GUIDE = `<ol class="guide"><li>เปิดแอป <b>My GPF</b> → แท็บ <b>My Account</b> → <b>ดูยอดเงินย้อนหลังรายปี</b> (ได้สูงสุด 5 ปี)</li>
   <li>แท็บ <b>ตามประเภทเงินนำส่ง</b>: ทุกปี กด <b>ดาวน์โหลด</b> ทั้ง 2 ปุ่ม คือ "ดูยอดเงิน" และ "ดูรายละเอียดรายการ"</li>
-  <li>แท็บ <b>ตามแผนการลงทุน</b>: ทุกปี กด <b>ดาวน์โหลด</b> ที่ "ดูรายละเอียดรายการ" <span class="pill warn">สำคัญที่สุด</span></li>
-  <li>รวม 3 ไฟล์ต่อปี × 5 ปี = 15 ไฟล์ แล้วกดนำเข้า PDF เลือกทั้งหมดพร้อมกัน</li></ol>`;
+  <li>แท็บ <b>ตามแผนการลงทุน</b>: ทุกปี กด <b>ดาวน์โหลด</b> ทั้ง 2 ปุ่มเช่นกัน "ดูรายละเอียดรายการ" <span class="pill warn">สำคัญที่สุด</span> และ "ดูยอดเงิน" (จำนวนหน่วยแต่ละแผน)</li>
+  <li>รวม 4 ไฟล์ต่อปี × 5 ปี = 20 ไฟล์ แล้วกดนำเข้า PDF เลือกทั้งหมดพร้อมกัน ถ้าโหลดไม่ครบ แอปจะบอกว่าขาดอะไร</li></ol>`;
 function dataChecklist() {
   const L = S.ledger; if (!L?.txns?.length) return [];
   const it = []; const iss = ledgerIssues(L); const bad = iss.find(i => i.level === 'bad');
   const ys = [...new Set(L.txns.map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
   it.push(bad ? {st: 'bad', t: 'ไฟล์ "ตามแผนการลงทุน" ยังไม่ครบ', d: bad.text, act: 'import', btn: 'นำเข้าเพิ่ม'} : {st: 'ok', t: `ไฟล์ "ตามแผนการลงทุน" ${ys[0]}–${ys[ys.length - 1]}`, d: 'ใช้คำนวณหน่วยและมูลค่าทุกแผน'});
   const o = L.opening;
-  if (o) it.push(o.approx || o.noSummary ? {st: 'warn', t: 'ยอดยกมาเป็นค่าประมาณ', d: o.noSummary ? 'ยังไม่มีไฟล์ "ดูยอดเงิน" (BalanceTransaction) ของปีแรก นำเข้าเพิ่มเพื่อให้เงินต้นยกมาแม่นยำ' : 'ถือหลายแผนพร้อมกันตั้งแต่ก่อนช่วง 5 ปี แอปจึงแบ่งหน่วยตามสัดส่วนเงินนำส่ง ถ้าหน่วยรวมไม่ตรง ยอดสิ้นปีจะไม่ขึ้น ✓ ให้ตรวจและแก้ในหน้ายอดยกมา', act: o.noSummary ? 'import' : 'opening', btn: o.noSummary ? 'นำเข้า' : 'ตรวจยอดยกมา'} : {st: 'ok', t: `ยอดยกมา ณ ${thd(o.date)} ตรวจกับใบสรุปยอดแล้ว`, d: 'เงินที่สะสมก่อนช่วงไฟล์ นับรวมเรียบร้อย'});
+  if (o) it.push(o.approx || o.noSummary ? {st: 'warn', t: 'ยอดยกมาเป็นค่าประมาณ', d: o.noSummary ? 'ยังไม่มีไฟล์ "ดูยอดเงิน" แท็บตามประเภทเงินนำส่ง (BalanceTransaction) ของปีแรก นำเข้าเพิ่มเพื่อให้เงินต้นยกมาแม่นยำ' : 'ถือหลายแผนพร้อมกันตั้งแต่ก่อนช่วง 5 ปี แอปจึงแบ่งหน่วยตามสัดส่วนเงินนำส่ง ถ้าหน่วยรวมไม่ตรง ยอดสิ้นปีจะไม่ขึ้น ✓ ให้ตรวจและแก้ในหน้ายอดยกมา', act: o.noSummary ? 'import' : 'opening', btn: o.noSummary ? 'นำเข้า' : 'ตรวจยอดยกมา'} : {st: 'ok', t: `ยอดยกมา ณ ${thd(o.date)} ตรวจกับใบสรุปยอดแล้ว`, d: 'เงินที่สะสมก่อนช่วงไฟล์ นับรวมเรียบร้อย'});
   const sums = (L.summary || []).filter(x => x.total && x.asOf).sort((a, b) => a.asOf.localeCompare(b.asOf)); const last = sums[sums.length - 1];
-  if (!last) it.push({st: 'warn', t: 'ยังไม่มีไฟล์ "ดูยอดเงิน"', d: 'ใช้ตรวจว่ายอดในแอปตรงกับ กบข. และใช้แยกเงินสะสม/สมทบ/ชดเชย', act: 'import', btn: 'นำเข้า'});
+  if (!last) it.push({st: 'warn', t: 'ยังไม่มีไฟล์ "ดูยอดเงิน" แท็บตามประเภทเงินนำส่ง', d: 'ใช้ตรวจว่ายอดในแอปตรงกับ กบข. และใช้แยกเงินสะสม/สมทบ/ชดเชย', act: 'import', btn: 'นำเข้า'});
   else { const at = d2t(last.asOf); const v = valueAt(at).value; const stale = Object.keys(holdingsAt(at)).some(p => { const n = navAt(p, at); return n && at - n.t > 4 && n.src !== 'summary'; }); const diff = r2(v - last.total[2]);
     it.push(stale ? {st: 'info', t: `รอ NAV ถึง ${thd(last.asOf)} เพื่อเทียบกับใบสรุปยอดล่าสุด`, d: 'NAV อัปเดตอัตโนมัติวันละ 2 รอบ'} : Math.abs(diff) < 1 ? {st: 'ok', t: `ยอดตรงกับใบสรุปยอด ${thd(last.asOf)}`, d: `${money(last.total[2])}`} : {st: 'warn', t: `ยอดต่างจากใบสรุปยอด ${thd(last.asOf)} ${moneyN(diff, 2, true)} บาท`, d: 'มักเกิดจากไฟล์บางปีขาด หรือมีรายการหลังวันที่ในไฟล์ ลองนำเข้าไฟล์ปีปัจจุบันใหม่', act: 'import', btn: 'นำเข้า'}); }
+  const us = (L.units || []); const lu = us[us.length - 1];
+  if (lu) { const h = holdingsAt(d2t(lu.asOf)); const bad = Object.entries(lu.rows).filter(([p, r]) => Math.abs((h[p] || 0) - r.units) > 0.001).concat(Object.keys(h).filter(p => !lu.rows[p] && h[p] > 0.001).map(p => [p, {units: 0}]));
+    it.push(bad.length ? {st: 'warn', t: `จำนวนหน่วยต่างจาก My GPF ณ ${thd(lu.asOf)}`, d: bad.map(([p, r]) => `${sh(p)}: แอป ${nf(h[p] || 0, 4)} · My GPF ${nf(r.units, 4)}`).join(' / '), act: 'import', btn: 'นำเข้า'} : {st: 'ok', t: `จำนวนหน่วยตรงกับ My GPF ณ ${thd(lu.asOf)}`, d: Object.entries(lu.rows).map(([p, r]) => `${sh(p)} ${nf(r.units, 4)}`).join(', ')}); }
+  else if (o && o.approx) it.push({st: 'info', t: 'แนะนำ: ไฟล์ "ดูยอดเงิน" ในแท็บตามแผนการลงทุน', d: 'บอกจำนวนหน่วยแต่ละแผนสิ้นปี ทำให้ยอดยกมาแม่นยำ ไม่ต้องประมาณ', act: 'import', btn: 'นำเข้า'});
   const dys = [...new Set((L.detail || []).map(x => +x.date.slice(0, 4)))]; const miss = ys.filter(y => !dys.includes(y));
   if (miss.length && !last) it.push({st: 'info', t: `ไฟล์ "รายละเอียดตามประเภทเงิน" ยังไม่มีปี ${miss.join(', ')}`, d: 'ไม่บังคับ ใช้แสดงเงินที่รัฐสมทบรายเดือน', act: 'import', btn: 'นำเข้า'});
   const lastTx = [...T].reverse().find(x => x.kind === 'contrib'); const age = lastTx ? d2t(todayD()) - lastTx.t : 999;
@@ -743,14 +762,14 @@ function checklistCard(force) {
 }
 function onboarding() {
   return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
-  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div>${DL_GUIDE}<div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี ไฟล์ชื่อ TransactionUnitDetail_…) และ "ยอดเงินตามประเภทเงินสะสม" (BalanceTransaction_…) ของปีเดียวกัน แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
+  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div>${DL_GUIDE}<div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี) แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
   <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
   <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
   <div class="verdict"><b>หลังนำเข้าแล้ว ข้อมูลที่ช่วยให้ตัวเลขแม่นยำสมบูรณ์</b><ul class="guide" style="margin-top:6px">
     <li><b>ไฟล์ "ดูยอดเงิน" ของปีแรก</b> สำคัญมากถ้าเป็นสมาชิกนานกว่า 5 ปี ใช้คำนวณยอดยกมาและตรวจยอดสิ้นปี</li>
     <li><b>ไฟล์ปีปัจจุบันที่โหลดล่าสุด</b> ยิ่งโหลดใกล้วันนี้ รายการเงินนำส่งยิ่งครบ (โหลดใหม่ได้เรื่อย ๆ แอปจะแทนที่ปีเดิม)</li>
     <li><b>ปีที่จะเกษียณ</b> ใส่ในตั้งค่า ใช้แนะนำระดับความเสี่ยงและประมาณเงินตอนเกษียณ</li>
-    <li><b>ถ้าถือหลายแผนพร้อมกันตั้งแต่ก่อนช่วง 5 ปี และไม่เคยย้ายออก</b> แอปจะประมาณการแบ่งหน่วยให้ ตรวจได้ที่ บันทึก → ยอดยกมา</li>
+    <li><b>ไฟล์ "ดูยอดเงิน" ในแท็บตามแผนการลงทุน</b> บอกจำนวนหน่วยแต่ละแผนสิ้นปี แอปใช้ตรวจหน่วยและคำนวณยอดยกมาได้แม่นยำ (ถ้าไม่มี แอปจะประมาณให้)</li>
     <li><b>ทุกเดือน</b> บันทึกเงินนำส่ง หรือโหลดไฟล์ปีปัจจุบันมานำเข้าใหม่</li></ul>
     <p class="note" style="margin:6px 0 0">หลังนำเข้า หน้าแรกจะมีรายการ "ความครบถ้วนของข้อมูล" บอกว่ายังขาดอะไร</p></div>
   <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
@@ -1285,11 +1304,11 @@ function sheetImport() {
     $('#pdfIn').addEventListener('change', async e => {
       const files = [...e.target.files]; const out = []; $('#pdfRes').innerHTML = '<p class="note">กำลังอ่านไฟล์…</p>';
       for (const f of files) { const warns = []; try { const pages = await readPdf(f); const r = GpfParse.parseGpf(pages, w => warns.push(w)); out.push({name: f.name, ...r, warns}); } catch (err) { out.push({name: f.name, kind: 'error', warns: [String(err.message || err)]}); } }
-      const lab = {plan: 'ตามแผนการลงทุน', detail: 'ตามประเภทเงิน', summary: 'สรุปยอด', unknown: 'ไม่รู้จักรูปแบบ', error: 'อ่านไม่ได้'};
+      const lab = {plan: 'ตามแผนการลงทุน', detail: 'ตามประเภทเงิน', summary: 'สรุปยอด', units: 'หน่วยแต่ละแผน', unknown: 'ไม่รู้จักรูปแบบ', error: 'อ่านไม่ได้'};
       const yrs = r => r.rows ? [...new Set(r.rows.map(x => x.date?.slice(0, 4)).filter(Boolean))].join(', ') : (r.summary?.year || '');
-      $('#pdfRes').innerHTML = `<div class="card stack">${out.map(r => `<div><div class="row between"><b style="font-size:14px;word-break:break-all">${esc(r.name)}</b><span class="pill ${['plan', 'detail', 'summary'].includes(r.kind) ? 'ok' : 'bad'}">${lab[r.kind]}</span></div><div class="note">${r.rows ? `${r.rows.length} รายการ · ปี ${yrs(r)}` : r.summary ? `ปี ${r.summary.year} · ยอด ${moneyN(r.summary.total?.[2])} ณ ${thd(r.summary.asOf)}` : ''}</div>${r.warns.slice(0, 3).map(w => `<div class="note" style="color:var(--warn)">${esc(w)}</div>`).join('')}</div>`).join('')}
+      $('#pdfRes').innerHTML = `<div class="card stack">${out.map(r => `<div><div class="row between"><b style="font-size:14px;word-break:break-all">${esc(r.name)}</b><span class="pill ${['plan', 'detail', 'summary', 'units'].includes(r.kind) ? 'ok' : 'bad'}">${lab[r.kind]}</span></div><div class="note">${r.rows ? `${r.rows.length} รายการ · ปี ${yrs(r)}` : r.summary ? `ปี ${r.summary.year} · ยอด ${moneyN(r.summary.total?.[2])} ณ ${thd(r.summary.asOf)}` : r.units ? `${Object.keys(r.units.rows).length} แผน · ${moneyN(r.units.total)} ณ ${thd(r.units.asOf)}` : ''}</div>${r.warns.slice(0, 3).map(w => `<div class="note" style="color:var(--warn)">${esc(w)}</div>`).join('')}</div>`).join('')}
         ${(() => { const M2 = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); const iss = ledgerIssues(M2); return `<div class="note">หลังรวมแล้วจะมีข้อมูล: ${coverageText(M2)}</div>${iss.map(i => `<div class="banner" style="background:var(--${{bad: 'down', warn: 'warn', info: 'accent'}[i.level]}-soft)">${esc(i.text)}</div>`).join('')}`; })()}
-        <div id="pdfCheck"></div><button class="btn block" id="pdfSave" ${out.some(r => ['plan', 'detail', 'summary'].includes(r.kind)) ? '' : 'disabled'}>รวมเข้าพอร์ต</button></div>`;
+        <div id="pdfCheck"></div><button class="btn block" id="pdfSave" ${out.some(r => ['plan', 'detail', 'summary', 'units'].includes(r.kind)) ? '' : 'disabled'}>รวมเข้าพอร์ต</button></div>`;
       $('#pdfSave')?.addEventListener('click', async () => { const fresh = $('#pdfReplace')?.checked; if (fresh) await clearData(); const L = mergeLedger((!fresh && S.ledger) || {txns: [], detail: [], summary: [], files: []}, out); await saveLedger(L); closeSheet(); toast(`นำเข้าแล้ว · ${L.txns.length} รายการ`); });
     });
   });
@@ -1309,18 +1328,20 @@ function ledgerIssues(L) {
   const missing = [...before, ...gaps];
   if (neg) out.push({level: 'bad', text: `หน่วยของแผน${neg.plan}ติดลบเมื่อ ${thd(neg.date, true)} แปลว่ายังขาดไฟล์ "ตามแผนการลงทุน" ${before.length > 1 ? `ปี ${before[0]}–${before[before.length - 1]}` : `ปี ${before[0]} และปีก่อนหน้า (ย้อนไปถึงปีที่เริ่มเป็นสมาชิก)`} ในแอป My GPF ไฟล์ชื่อลงท้ายด้วยปี ค.ศ. เช่น TransactionUnitDetail_…_${before[before.length - 1] - 543}.pdf คือปี ${before[before.length - 1]} ตัวเลขพอร์ตจะยังไม่ถูกต้องจนกว่าจะนำเข้าครบ`, years: missing});
   if (gaps.length) out.push({level: 'bad', text: `ไฟล์ "ตามแผนการลงทุน" ขาดปี ${gaps.join(', ')}`, years: gaps});
-  if (L.opening) out.push({level: L.opening.approx ? 'warn' : 'info', text: `เริ่มนับจากยอดยกมา ณ ${thd(L.opening.date, true)} (${Object.entries(L.opening.units).map(([p, v]) => `${sh(p)} ${nf(v, 4)} หน่วย`).join(', ')} · เงินต้น ${moneyN(L.opening.principal)})${L.opening.check ? ` ตรวจกับใบสรุปยอด ${thd(L.opening.check.asOf)}: ${Math.abs(L.opening.check.ours - L.opening.check.official) < 1 ? 'ตรงกัน ✓' : 'ต่าง ' + moneyN(L.opening.check.ours - L.opening.check.official, 2, true)}` : ''}${L.opening.noSummary ? ' · ไม่มีไฟล์สรุปยอด เงินต้นยกมาจึงเป็นค่าประมาณ ใส่ไฟล์ BalanceTransaction ของปีแรกเพื่อความแม่นยำ หรือแก้เองในหน้าบันทึก' : L.opening.approx ? ' · แบ่งหน่วยระหว่างแผนโดยประมาณ ตรวจและแก้ได้ในหน้าบันทึก' : ''}`});
+  if (L.opening) out.push({level: L.opening.approx ? 'warn' : 'info', text: `เริ่มนับจากยอดยกมา ณ ${thd(L.opening.date, true)} (${Object.entries(L.opening.units).map(([p, v]) => `${sh(p)} ${nf(v, 4)} หน่วย`).join(', ')} · เงินต้น ${moneyN(L.opening.principal)})${L.opening.check ? ` ตรวจกับใบสรุปยอด ${thd(L.opening.check.asOf)}: ${Math.abs(L.opening.check.ours - L.opening.check.official) < 1 ? 'ตรงกัน ✓' : 'ต่าง ' + moneyN(L.opening.check.ours - L.opening.check.official, 2, true)}` : ''}${L.opening.noSummary ? ' · ไม่มีไฟล์ "ดูยอดเงิน" แท็บตามประเภทเงินนำส่ง เงินต้นยกมาจึงเป็นค่าประมาณ นำเข้าไฟล์นี้ (BalanceTransaction) ของปีแรกเพื่อความแม่นยำ หรือแก้เองในหน้าบันทึก' : L.opening.approx ? ' · แบ่งหน่วยระหว่างแผนโดยประมาณ ตรวจและแก้ได้ในหน้าบันทึก' : ''}`});
   const detMiss = planYears.filter(y => !detYears.includes(y)); if (detYears.length && detMiss.length) out.push({level: 'warn', text: `ไฟล์ "ตามประเภทเงิน" ยังไม่มีปี ${detMiss.join(', ')} ส่วน "ใครออมให้คุณ" จะนับไม่ครบ`});
   return out;
 }
-function coverageText(L) { const ys = a => { a = [...new Set(a)].sort((x, y) => x - y); return a.length ? (a.length > 1 ? `${a[0]}–${a[a.length - 1]}` : String(a[0])) : '—'; }; return `ตามแผนการลงทุน ${ys((L.txns || []).map(x => +x.date.slice(0, 4)))} · ตามประเภทเงิน ${ys((L.detail || []).map(x => +x.date.slice(0, 4)))} · สรุปยอด ${ys((L.summary || []).map(x => x.year))}`; }
+function coverageText(L) { const ys = a => { a = [...new Set(a)].sort((x, y) => x - y); return a.length ? (a.length > 1 ? `${a[0]}–${a[a.length - 1]}` : String(a[0])) : '—'; }; return `ตามแผนการลงทุน ${ys((L.txns || []).map(x => +x.date.slice(0, 4)))} · ตามประเภทเงิน ${ys((L.detail || []).map(x => +x.date.slice(0, 4)))} · สรุปยอด ${ys((L.summary || []).map(x => x.year))} · หน่วยแต่ละแผน ${ys((L.units || []).map(x => +x.asOf.slice(0, 4)))}`; }
 function navRaw(p, t) { const a = (NAV[p] || []).filter(n => n.src !== 'summary' && n.t <= t); return a.length ? a[a.length - 1] : null; }
 function deriveOpening(L) {
   if (!L?.txns?.length) return null; if (L.opening?.source === 'manual') return L.opening;
   const tx = [...L.txns].sort((a, b) => a.date.localeCompare(b.date) || (a.amount < 0 ? -1 : 1));
   const y0 = +tx[0].date.slice(0, 4); const date = `${y0 - 1}-12-31`; const t0 = d2t(date);
   const run = {}, min = {}; for (const x of tx) { run[x.plan] = (run[x.plan] || 0) + x.units; min[x.plan] = Math.min(min[x.plan] ?? 0, run[x.plan]); }
-  const units = {}; for (const [p, m] of Object.entries(min)) if (m < -0.0001) units[p] = r4(-m);
+  let units = {}; for (const [p, m] of Object.entries(min)) if (m < -0.0001) units[p] = r4(-m);
+  const snap = (L.units || []).filter(u => u.asOf >= tx[0].date).sort((a, b) => a.asOf.localeCompare(b.asOf))[0];
+  if (snap) { const d = {}; for (const [p, r] of Object.entries(snap.rows)) d[p] = r.units; for (const x of tx) if (x.date <= snap.asOf) d[x.plan] = (d[x.plan] || 0) - x.units; units = {}; for (const [p, v] of Object.entries(d)) if (v > 0.0001) units[p] = r4(v); }
   const sum = (L.summary || []).filter(x => x.asOf && x.total && x.asOf >= tx[0].date).sort((a, b) => a.asOf.localeCompare(b.asOf))[0];
   let principal = null, approx = false, check = null;
   if (sum) {
@@ -1329,7 +1350,7 @@ function deriveOpening(L) {
     const h = {...units}; for (const x of tx) if (x.date <= sum.asOf) h[x.plan] = (h[x.plan] || 0) + x.units;
     let val = 0; for (const [p, u] of Object.entries(h)) { const n = navRaw(p, ts); if (n) val += u * n.v; }
     let resid = sum.total[2] - val;
-    if (resid > 1) { // money held before the window in plans that never went negative: split by first-year contribution mix
+    if (resid > 1 && !snap) { // money held before the window in plans that never went negative: split by first-year contribution mix
       const first = tx.filter(x => x.kind === 'contrib' && x.date.slice(0, 4) === String(y0)); const tot = first.reduce((s, x) => s + x.amount, 0) || 1; const w = {}; for (const x of first) w[x.plan] = (w[x.plan] || 0) + x.amount / tot;
       const keys = Object.keys(w); if (keys.length > 1) approx = true;
       for (const p of keys) { const n = navRaw(p, ts); if (n) units[p] = r4((units[p] || 0) + resid * w[p] / n.v); }
@@ -1340,15 +1361,17 @@ function deriveOpening(L) {
   } else if (!Object.keys(units).length) return null;
   else { approx = true; }
   if (principal == null) { let v = 0; for (const [p, u] of Object.entries(units)) { const n = navRaw(p, t0); if (n) v += u * n.v; } principal = r2(v); }
-  return {date, units, principal: Math.max(0, principal), source: 'auto', approx, check, noSummary: !sum};
+  if (snap && !sum) { approx = true; } else if (snap) approx = false;
+  return {date, units, principal: Math.max(0, principal), source: 'auto', approx, check, noSummary: !sum, fromUnits: !!snap};
 }
 function mergeLedger(L, results) {
   L = JSON.parse(JSON.stringify(L)); L.files ||= [];
   for (const r of results) {
     if (r.kind === 'plan' && r.rows.length) { const ys = new Set(r.rows.map(x => x.date?.slice(0, 4))); L.txns = L.txns.filter(x => !ys.has(x.date.slice(0, 4))).concat(r.rows.filter(x => x.date).map(x => ({date: x.date, kind: x.kind === 'other' ? (x.amount < 0 ? 'switch_out' : 'contrib') : x.kind, plan: x.plan, nav: x.nav, units: x.units, amount: x.amount}))); }
     if (r.kind === 'detail' && r.rows.length) { const ys = new Set(r.rows.map(x => x.date?.slice(0, 4))); L.detail = L.detail.filter(x => !ys.has(x.date.slice(0, 4))).concat(r.rows.filter(x => x.date)); }
+    if (r.kind === 'units' && r.units?.asOf) { L.units = (L.units || []).filter(u => u.asOf !== r.units.asOf).concat([r.units]).sort((a, b) => a.asOf.localeCompare(b.asOf)); }
     if (r.kind === 'summary' && r.summary?.year) { L.summary = L.summary.filter(s => s.year !== r.summary.year).concat([r.summary]); }
-    if (['plan', 'detail', 'summary'].includes(r.kind)) L.files = L.files.filter(f => f.name !== r.name).concat([{name: r.name, kind: r.kind, at: Date.now()}]);
+    if (['plan', 'detail', 'summary', 'units'].includes(r.kind)) L.files = L.files.filter(f => f.name !== r.name).concat([{name: r.name, kind: r.kind, at: Date.now()}]);
   }
   // contributions that also appear in switch dates: fix kind using detail labels
   const swD = new Set(L.detail.filter(d => d.kind === 'switch_in').map(d => d.date)); const cD = new Set(L.detail.filter(d => d.kind === 'contrib').map(d => d.date));
