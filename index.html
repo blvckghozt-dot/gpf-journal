@@ -354,8 +354,8 @@ function kindOf(lab,amount){
   return amount<0?'switch_out':'other';
 }
 function parsePlan(pages,warn){
-  const out=[];let cols=null,leftMax=90;
-  for(const pg of pages){
+  const out=[];let cols=null,leftMax=90;let prevKeys=new Set(),curKeys=new Set();
+  for(const pg of pages){prevKeys=curKeys;curKeys=new Set();
     const ws=words(pg.items);
     const navh=ws.filter(w=>w.text.includes('มูลค่าต่อ')).sort((a,b)=>a.x0-b.x0);
     let body=ws;
@@ -387,6 +387,8 @@ function parsePlan(pages,warn){
         let [nav,units,amount]=v;
         if(Math.abs(nav*units-amount)>Math.max(0.6,Math.abs(amount)*5e-4)){const f=Math.round(amount/nav*1e4)/1e4;warn&&warn(`${date} ${plan}: แก้จำนวนหน่วย ${units} → ${f}`);units=f;}
         if(!date)warn&&warn(`อ่านวันที่ไม่ได้: "${dtxt}"`);
+        const key=[date,plan,nav,units,amount].join('|');curKeys.add(key);
+        if(prevKeys.has(key))continue; // GPF repeats the last row of a page at the top of the next page
         out.push({date,kind:kindOf(lab,amount),label:lab,plan:PLANS.includes(plan)?plan:plan,nav,units,amount});
       }
     }
@@ -394,8 +396,8 @@ function parsePlan(pages,warn){
   return out;
 }
 function parseDetail(pages,warn){
-  const out=[];
-  for(const pg of pages){
+  const out=[];let prevKeys=new Set(),curKeys=new Set();
+  for(const pg of pages){prevKeys=curKeys;curKeys=new Set();
     const ws=words(pg.items);
     const listH=ws.find(w=>ns(w.text).startsWith('รายการ')&&!w.text.includes('เคลื่อนไหว'));
     const dateH=ws.find(w=>w.text.includes('วันที่'));
@@ -409,6 +411,7 @@ function parseDetail(pages,warn){
       const lab=bw.filter(w=>w.x0>=leftMax&&!isNum(w.text)).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(w=>w.text).join('');
       if(nums.length<6){warn&&warn(`detail ${date}: ตัวเลข ${nums.length} ช่อง`);continue;}
       const v=nums.slice(-6).map(w=>num(w.text));
+      const key=[date,lab,...v].join('|');curKeys.add(key);if(prevKeys.has(key))continue;
       out.push({date,kind:kindOf(lab,v[5]),label:lab,initial:v[0],comp:v[1],saving:v[2],match:v[3],extra:v[4],total:v[5]});
     }
   }
