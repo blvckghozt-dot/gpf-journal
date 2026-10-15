@@ -1,0 +1,29 @@
+name: อัปเดต NAV จาก กบข.
+on:
+  schedule:
+    - cron: '47 1 * * *'    # 08:47 เวลาไทย
+    - cron: '47 12 * * *'   # 19:47 เวลาไทย
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: ดึง NAV
+        run: python scripts/update_nav.py
+      - name: บันทึกถ้ามีข้อมูลใหม่
+        run: |
+          if [ -n "$(git status --porcelain data)" ]; then
+            git config user.name "gpf-nav-bot"
+            git config user.email "gpf-nav-bot@users.noreply.github.com"
+            git add data/nav.json
+            git commit -m "NAV $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "ไม่มีข้อมูลใหม่"
+          fi

@@ -1,0 +1,1220 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2747B0">
+<meta name="description" content="สมุดบัญชี กบข. ส่วนตัว ติดตามมูลค่า เงินต้น ผลตอบแทน และจัดอันดับทุกแผน ข้อมูลอยู่ในเครื่องคุณ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GPF Journal">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>GPF Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one mobile column (max 560px) — sticky header, stacked ledger cards, bottom tab bar; desktop centers the column */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --surface-2:#F5F7FA; --ink:#111927; --ink-2:#465264; --muted:#768195;
+  --line:#DCE1E8; --line-2:#E9EDF2;
+  --accent:#2747B0; --accent-ink:#FFFFFF; --accent-soft:#E4EAFB;
+  --gold:#A3741A; --gold-soft:#F6EEDC;
+  --up:#0B8546; --up-soft:#E0F3E8; --down:#CC3535; --down-soft:#FBE5E5; --warn:#B26B00; --warn-soft:#FCEFD9;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --shadow:0 1px 2px rgba(17,25,39,.06),0 4px 16px rgba(17,25,39,.05);
+  --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:14px; --r-s:9px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1019; --surface:#131A26; --surface-2:#19212F; --ink:#E7EBF2; --ink-2:#B1BACA; --muted:#7F8A9D;
+  --line:#263044; --line-2:#1F2838;
+  --accent:#8DA5FF; --accent-ink:#0B1019; --accent-soft:#1C2747;
+  --gold:#E2B65E; --gold-soft:#2E2614;
+  --up:#33C474; --up-soft:#10291B; --down:#FF6E6E; --down-soft:#341616; --warn:#F0B44C; --warn-soft:#2F2412;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1019; --surface:#131A26; --surface-2:#19212F; --ink:#E7EBF2; --ink-2:#B1BACA; --muted:#7F8A9D;
+  --line:#263044; --line-2:#1F2838;
+  --accent:#8DA5FF; --accent-ink:#0B1019; --accent-soft:#1C2747;
+  --gold:#E2B65E; --gold-soft:#2E2614;
+  --up:#33C474; --up-soft:#10291B; --down:#FF6E6E; --down-soft:#341616; --warn:#F0B44C; --warn-soft:#2F2412;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:560px;margin:0 auto;padding-block:0 96px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .ink2{color:var(--ink-2)}
+.up{color:var(--up)} .down{color:var(--down)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h2{font-size:17px;font-weight:600}
+h3{font-size:15px;font-weight:600}
+.eyebrow{font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:500}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px))) 0;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.top-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:9px;margin-right:auto;min-width:0}
+.mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center;flex:none}
+.mark svg{display:block}
+.brand b{font-family:var(--f-display);font-size:17px;letter-spacing:.01em;font-weight:700}
+.brand small{display:block;font-size:11px;color:var(--muted);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.icon-btn svg{width:19px;height:19px;stroke:var(--ink-2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:transparent}
+.icon-btn[aria-pressed="true"] svg{stroke:var(--accent)}
+
+/* cards */
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:22px 2px 10px}
+.sec-h h2{font-size:16px}
+.link{color:var(--accent);background:none;border:0;padding:0;font-weight:500;font-size:14px}
+
+/* hero */
+.hero{padding:18px 16px 14px}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.datestep{display:flex;align-items:center;gap:4px;background:var(--surface-2);border-radius:999px;padding:3px}
+.datestep button{border:0;background:none;width:30px;height:28px;border-radius:999px;display:grid;place-items:center;color:var(--ink-2)}
+.datestep button:disabled{opacity:.3;cursor:default}
+.datestep span{font-size:13px;padding:0 4px;white-space:nowrap}
+.big{font-family:var(--f-display);font-size:clamp(34px,10vw,44px);font-weight:700;letter-spacing:-.01em;line-height:1.1;margin-top:6px;font-variant-numeric:tabular-nums}
+.big small{font-size:.5em;font-weight:600;color:var(--ink-2)}
+.big .cur{font-size:.62em;margin-right:2px;color:var(--ink-2)}
+.delta{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:14px;padding:3px 9px;border-radius:999px}
+.delta.up{background:var(--up-soft)} .delta.down{background:var(--down-soft)} .delta.flat{background:var(--surface-2);color:var(--ink-2)}
+.kv3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.kv3>div{min-width:0}
+.kv3 .v{font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv3 .k{font-size:12px;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+
+.periods{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.period{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 13px;border:0;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.period .k{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.period .v{font-family:var(--f-display);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.period .p{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.period .s{font-size:11.5px;color:var(--muted)}
+
+/* chips & segmented */
+.seg{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:2px;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:1 0 auto;border:0;background:none;border-radius:8px;padding:6px 10px;font-size:13.5px;color:var(--ink-2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:13px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.pill.ok{background:var(--up-soft);color:var(--up)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--down-soft);color:var(--down)}
+.pill.gold{background:var(--gold-soft);color:var(--gold)}
+
+/* chart */
+.chart{position:relative;margin-top:8px;touch-action:pan-y;user-select:none}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .tip{position:absolute;top:0;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);white-space:nowrap;z-index:2;line-height:1.45}
+.chart .tip b{font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:3px;margin-right:6px}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--gold) 0 4px,transparent 4px 7px)!important}
+
+/* holdings */
+.hold{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 0;border-top:1px solid var(--line-2)}
+.hold:first-child{border-top:0;padding-top:2px}
+.hold .n{font-weight:600;display:flex;align-items:center;gap:6px;min-width:0}
+.hold .sub{font-size:12.5px;color:var(--muted)}
+.hold .r{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;display:flex;gap:2px}
+.bar span{display:block;height:100%;border-radius:3px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:0 -16px;padding:0 16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font-weight:500;color:var(--muted);font-size:12px;text-align:right;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid var(--line-2);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+th:last-child,td:last-child{padding-right:0}
+tr.sum td{font-weight:600;border-bottom:0}
+td.l{text-align:left}
+.tbl-wrap th:first-child,.tbl-wrap td:first-child{position:sticky;left:0;background:var(--surface);z-index:1;padding-right:8px}
+
+/* ranking */
+.rank{display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:4px 10px;padding:10px 0;border-top:1px solid var(--line-2)}
+.rank:first-child{border-top:0}
+.rank .no{width:24px;height:24px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--ink-2)}
+.rank.top .no{background:var(--ink);color:var(--surface)}
+.rank.mine{background:var(--accent-soft);margin:0 -10px;padding:10px;border-radius:10px;border-top-color:transparent}
+.rank .nm{font-weight:500;min-width:0}
+.rank .meter{grid-column:2;height:4px;background:var(--surface-2);border-radius:2px;position:relative;overflow:hidden}
+.rank .meter span{position:absolute;top:0;bottom:0;border-radius:2px}
+.rank .pct{grid-row:1/span 2;grid-column:3;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+
+/* periods timeline */
+.tl{display:flex;height:30px;border-radius:8px;overflow:hidden;gap:2px;margin:6px 0 4px}
+.tl button{border:0;padding:0;font-size:11px;color:var(--accent-ink);font-weight:600;overflow:hidden;white-space:nowrap;min-width:6px}
+.era{border-left:3px solid var(--c,var(--accent));padding-left:12px}
+.era .head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.kvs{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:10px;font-size:13.5px}
+.kvs>div{display:flex;justify-content:space-between;gap:6px;border-bottom:1px dotted var(--line);padding-bottom:4px;min-width:0}
+.kvs>div span:first-child{color:var(--muted)}
+.kvs>div span:last-child{font-variant-numeric:tabular-nums;font-weight:500;text-align:right}
+.verdict{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;background:var(--surface-2)}
+.verdict.good{background:var(--up-soft)} .verdict.bad{background:var(--down-soft)}
+
+/* list items */
+.li{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line-2);align-items:flex-start}
+.li:first-child{border-top:0}
+.li .ic{width:32px;height:32px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;flex:none;font-size:13px;font-weight:700;color:var(--ink-2)}
+.li .ic.in{background:var(--up-soft);color:var(--up)} .li .ic.sw{background:var(--accent-soft);color:var(--accent)}
+.li .body{flex:1;min-width:0}
+.li .t{font-weight:500}
+.li .s{font-size:12.5px;color:var(--muted)}
+.li .amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* news */
+.news{display:block;padding:12px 0;border-top:1px solid var(--line-2);color:inherit;text-decoration:none}
+.news:first-child{border-top:0}
+.news .t{font-weight:600;line-height:1.4}
+.news p{margin:4px 0 6px;font-size:13.5px;color:var(--ink-2)}
+.asset{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line-2);font-size:14px}
+.asset:first-child{border-top:0}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;color:var(--ink-2);font-weight:500}
+.field .hint{font-size:12px;color:var(--muted)}
+.inp{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px;font-size:15px;min-width:0}
+.inp:focus{outline:2px solid var(--accent);outline-offset:-1px;background:var(--surface)}
+textarea.inp{min-height:120px;resize:vertical;font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:600;font-size:15px;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.sec{background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+.btn.ghost{background:none;color:var(--accent);padding:8px 10px}
+.btn.danger{background:var(--down-soft);color:var(--down)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.block{width:100%}
+.tool{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow);border:0;text-align:left;width:100%}
+.tool .ti{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);display:grid;place-items:center;flex:none}
+.tool .ti svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tool b{display:block;font-weight:600}
+.tool span{font-size:12.5px;color:var(--muted)}
+.tool .chev{margin-left:auto;color:var(--muted)}
+.note{font-size:12.5px;color:var(--muted);line-height:1.5}
+.banner{padding:10px 12px;border-radius:11px;font-size:13px;background:var(--warn-soft);color:var(--ink);display:flex;gap:8px;align-items:flex-start}
+.banner.info{background:var(--accent-soft)}
+.empty{text-align:center;padding:28px 16px}
+.empty h3{margin-bottom:6px}
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--surface-2),var(--line-2),var(--surface-2));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.tabbar-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11.5px;color:var(--muted)}
+.tabbar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-current="page"]{color:var(--accent);font-weight:600}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;padding:8px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overscroll-behavior:contain}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 10px}
+.sheet .sh-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px}
+.sheet .sh-h h2{font-size:18px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:14px;z-index:60;max-width:90%;text-align:center}
+.formula{font-family:var(--f-mono);font-size:12.5px;background:var(--surface-2);border-radius:9px;padding:10px 12px;line-height:1.6;overflow-x:auto;white-space:nowrap}
+.masked .money{filter:blur(0)}
+.hide-note{font-size:11.5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (min-width:700px){.wrap{padding-top:8px}}
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand">
+    <div class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M14 7h4v4"/></svg></div>
+    <div style="min-width:0"><b>GPF Journal</b><small id="hdrSub">สมุดบัญชี กบข. ส่วนตัว</small></div>
+  </div>
+  <button class="icon-btn" id="btnHide" aria-pressed="false" aria-label="ซ่อนจำนวนเงิน" title="ซ่อนจำนวนเงิน"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <button class="icon-btn" id="btnSettings" aria-label="ตั้งค่า" title="ตั้งค่า"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</div></header>
+
+<main class="wrap" id="main">
+  <section id="v-home" data-view></section>
+  <section id="v-history" data-view hidden></section>
+  <section id="v-funds" data-view hidden></section>
+  <section id="v-news" data-view hidden></section>
+  <section id="v-record" data-view hidden></section>
+</main>
+
+<nav class="tabbar" aria-label="เมนูหลัก"><div class="tabbar-in">
+  <button data-tab="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>หน้าแรก</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>ประวัติ</button>
+  <button data-tab="funds"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg>กองทุน</button>
+  <button data-tab="news"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>ข่าว</button>
+  <button data-tab="record"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>บันทึก</button>
+</div></nav>
+<div id="sheetRoot"></div>
+<div id="toastRoot"></div>
+
+<script>const GPFJ_STANDALONE=true;const NAV_OFFICIAL={"2540-12-31":{"ลงทุนพื้นฐานทั่วไป":6.8572},"2541-12-31":{"ลงทุนพื้นฐานทั่วไป":8.0244},"2542-12-31":{"ลงทุนพื้นฐานทั่วไป":8.7711},"2543-12-31":{"ลงทุนพื้นฐานทั่วไป":9.3218},"2544-12-31":{"ลงทุนพื้นฐานทั่วไป":10},"2545-12-27":{"ลงทุนพื้นฐานทั่วไป":10.7667},"2546-12-31":{"ลงทุนพื้นฐานทั่วไป":11.9308},"2547-12-30":{"ลงทุนพื้นฐานทั่วไป":12.3145},"2548-12-30":{"ลงทุนพื้นฐานทั่วไป":13.0946},"2549-12-29":{"ลงทุนพื้นฐานทั่วไป":13.6606},"2550-12-28":{"ลงทุนพื้นฐานทั่วไป":14.7818},"2551-12-30":{"ลงทุนพื้นฐานทั่วไป":14.0493},"2552-12-30":{"ลงทุนพื้นฐานทั่วไป":15.355},"2553-12-30":{"เชิงรุก 35":16.9776,"ลงทุนพื้นฐานทั่วไป":16.6743,"ตราสารหนี้":16.1267,"เงินฝากและตราสารหนี้ระยะสั้น":16.4061},"2554-12-30":{"เชิงรุก 35":17.3381,"ลงทุนพื้นฐานทั่วไป":17.143,"ตราสารหนี้":16.6808,"เงินฝากและตราสารหนี้ระยะสั้น":16.8722},"2555-12-28":{"เชิงรุก 35":18.969,"ลงทุนพื้นฐานทั่วไป":18.4325,"ตราสารหนี้":17.2061,"เงินฝากและตราสารหนี้ระยะสั้น":17.3101},"2556-12-27":{"เชิงรุก 35":20.1417,"ลงทุนพื้นฐานทั่วไป":19.2927,"ตราสารหนี้":17.7197,"เงินฝากและตราสารหนี้ระยะสั้น":17.7828,"เชิงรุก 20":19.0037,"เชิงรุก 65":20.0893},"2557-12-30":{"เชิงรุก 35":21.7893,"ลงทุนพื้นฐานทั่วไป":20.6305,"ตราสารหนี้":18.7032,"เงินฝากและตราสารหนี้ระยะสั้น":18.2266,"เชิงรุก 20":20.2477,"เชิงรุก 65":21.6226},"2558-12-30":{"เชิงรุก 35":22.4575,"ลงทุนพื้นฐานทั่วไป":21.3453,"ตราสารหนี้":19.4031,"เงินฝากและตราสารหนี้ระยะสั้น":18.5749,"เชิงรุก 20":20.6986,"เชิงรุก 65":22.3459},"2559-12-30":{"เชิงรุก 35":23.8762,"ลงทุนพื้นฐานทั่วไป":22.4064,"ตราสารหนี้":19.7398,"เงินฝากและตราสารหนี้ระยะสั้น":18.8558,"เชิงรุก 20":21.7645,"เชิงรุก 65":24.4919},"2560-12-29":{"เชิงรุก 35":25.8203,"ลงทุนพื้นฐานทั่วไป":23.8398,"ตราสารหนี้":20.3321,"เงินฝากและตราสารหนี้ระยะสั้น":19.1405,"เชิงรุก 20":23.0542,"เชิงรุก 65":27.5627},"2561-12-28":{"เชิงรุก 35":25.628,"ลงทุนพื้นฐานทั่วไป":23.8769,"ตราสารหนี้":20.5844,"เงินฝากและตราสารหนี้ระยะสั้น":19.4113,"เชิงรุก 20":23.2366,"เชิงรุก 65":26.6734},"2562-12-30":{"เชิงรุก 35":27.3197,"ลงทุนพื้นฐานทั่วไป":25.2041,"ตราสารหนี้":21.4614,"เงินฝากและตราสารหนี้ระยะสั้น":19.7368,"เชิงรุก 20":24.4628,"เชิงรุก 65":29.0981,"หุ้นไทย":23.9872},"2563-12-30":{"เชิงรุก 35":28.9163,"ลงทุนพื้นฐานทั่วไป":26.3782,"ตราสารหนี้":22.051,"เงินฝากและตราสารหนี้ระยะสั้น":19.9808,"เชิงรุก 20":25.5632,"เชิงรุก 65":31.8022,"หุ้นไทย":21.5431,"กองทุนอสังหาริมทรัพย์ไทย":23.3296},"2564-03-31":{"เชิงรุก 35":29.4961,"ลงทุนพื้นฐานทั่วไป":26.5611,"ตราสารหนี้":21.8856,"เงินฝากและตราสารหนี้ระยะสั้น":20.0284,"เชิงรุก 20":25.8569,"เชิงรุก 65":32.9693,"หุ้นไทย":24.0313,"กองทุนอสังหาริมทรัพย์ไทย":23.3781},"2564-06-30":{"เชิงรุก 35":30.4891,"ลงทุนพื้นฐานทั่วไป":27.3381,"ตราสารหนี้":22.0563,"เงินฝากและตราสารหนี้ระยะสั้น":20.0605,"เชิงรุก 20":26.4471,"เชิงรุก 65":34.7436,"หุ้นไทย":23.4628,"กองทุนอสังหาริมทรัพย์ไทย":24.5844},"2564-09-30":{"เชิงรุก 35":30.9056,"ลงทุนพื้นฐานทั่วไป":27.62,"ตราสารหนี้":22.041,"เงินฝากและตราสารหนี้ระยะสั้น":20.0857,"เชิงรุก 20":26.7229,"เชิงรุก 65":35.2559,"หุ้นไทย":24.0577,"กองทุนอสังหาริมทรัพย์ไทย":23.7879},"2564-12-30":{"เชิงรุก 35":31.3624,"ลงทุนพื้นฐานทั่วไป":27.9388,"ตราสารหนี้":22.0619,"เงินฝากและตราสารหนี้ระยะสั้น":20.1136,"เชิงรุก 20":27.0433,"เชิงรุก 65":35.9714,"หุ้นไทย":24.9294,"กองทุนอสังหาริมทรัพย์ไทย":24.0007,"หุ้นต่างประเทศ":27.9113},"2565-03-31":{"เชิงรุก 35":30.5509,"ลงทุนพื้นฐานทั่วไป":27.4954,"ตราสารหนี้":21.9795,"เงินฝากและตราสารหนี้ระยะสั้น":20.1439,"เชิงรุก 20":26.6997,"เชิงรุก 65":34.2467,"หุ้นไทย":26.0456,"กองทุนอสังหาริมทรัพย์ไทย":23.1226,"หุ้นต่างประเทศ":24.8509},"2565-06-30":{"เชิงรุก 35":29.8464,"ลงทุนพื้นฐานทั่วไป":27.2034,"ตราสารหนี้":21.7807,"เงินฝากและตราสารหนี้ระยะสั้น":20.1769,"เชิงรุก 20":26.4608,"เชิงรุก 65":32.6315,"หุ้นไทย":24.6818,"กองทุนอสังหาริมทรัพย์ไทย":21.8371,"หุ้นต่างประเทศ":22.0444},"2565-09-30":{"เชิงรุก 35":30.0039,"ลงทุนพื้นฐานทั่วไป":27.3156,"ตราสารหนี้":21.7913,"เงินฝากและตราสารหนี้ระยะสั้น":20.2102,"เชิงรุก 20":26.5722,"เชิงรุก 65":32.7127,"หุ้นไทย":25.0447,"กองทุนอสังหาริมทรัพย์ไทย":21.6233,"หุ้นต่างประเทศ":21.6292,"มุ่งคุ้มครองเงินต้น 1":27.7514},"2565-12-30":{"เชิงรุก 35":30.2267,"ลงทุนพื้นฐานทั่วไป":27.5048,"ตราสารหนี้":22.1796,"เงินฝากและตราสารหนี้ระยะสั้น":20.2418,"เชิงรุก 20":26.761,"เชิงรุก 65":32.8282,"หุ้นไทย":26.5416,"กองทุนอสังหาริมทรัพย์ไทย":22.1154,"หุ้นต่างประเทศ":21.5113,"มุ่งคุ้มครองเงินต้น 1":27.8629,"ตราสารหนี้ต่างประเทศ":27.0977,"ทองคำ":27.8929},"2566-03-31":{"เชิงรุก 35":30.338,"ลงทุนพื้นฐานทั่วไป":27.572,"ตราสารหนี้":22.3197,"เงินฝากและตราสารหนี้ระยะสั้น":20.2928,"เชิงรุก 20":26.829,"เชิงรุก 65":33.0642,"หุ้นไทย":25.2881,"กองทุนอสังหาริมทรัพย์ไทย":22.3745,"หุ้นต่างประเทศ":22.423,"มุ่งคุ้มครองเงินต้น 1":27.9662,"ตราสารหนี้ต่างประเทศ":27.5305,"ทองคำ":29.97,"เชิงรุก 75":28.0229},"2566-06-30":{"เชิงรุก 35":30.5049,"ลงทุนพื้นฐานทั่วไป":27.6636,"ตราสารหนี้":22.31,"เงินฝากและตราสารหนี้ระยะสั้น":20.3532,"เชิงรุก 20":26.8943,"เชิงรุก 65":33.5226,"หุ้นไทย":24.4476,"กองทุนอสังหาริมทรัพย์ไทย":21.2858,"หุ้นต่างประเทศ":23.284,"มุ่งคุ้มครองเงินต้น 1":28.0776,"ตราสารหนี้ต่างประเทศ":27.253,"ทองคำ":29.4189,"เชิงรุก 75":28.4556},"2566-09-29":{"เชิงรุก 35":30.2354,"ลงทุนพื้นฐานทั่วไป":27.4196,"ตราสารหนี้":22.1537,"เงินฝากและตราสารหนี้ระยะสั้น":20.45,"เชิงรุก 20":26.6917,"เชิงรุก 65":33.1474,"หุ้นไทย":24.3143,"กองทุนอสังหาริมทรัพย์ไทย":20.7071,"หุ้นต่างประเทศ":22.8311,"มุ่งคุ้มครองเงินต้น 1":28.1895,"ตราสารหนี้ต่างประเทศ":26.7224,"ทองคำ":28.6933,"เชิงรุก 75":28.1593},"2566-12-28":{"เชิงรุก 35":30.6602,"ลงทุนพื้นฐานทั่วไป":27.9001,"ตราสารหนี้":22.5326,"เงินฝากและตราสารหนี้ระยะสั้น":20.5721,"เชิงรุก 20":27.0738,"เชิงรุก 65":33.593,"หุ้นไทย":23.5128,"กองทุนอสังหาริมทรัพย์ไทย":21.1549,"หุ้นต่างประเทศ":23.6094,"มุ่งคุ้มครองเงินต้น 1":28.3002,"ตราสารหนี้ต่างประเทศ":27.699,"ทองคำ":30.286,"เชิงรุก 75":28.4473},"2567-03-29":{"เชิงรุก 35":31.8786,"ลงทุนพื้นฐานทั่วไป":28.704,"ตราสารหนี้":22.7658,"เงินฝากและตราสารหนี้ระยะสั้น":20.6975,"เชิงรุก 20":27.8158,"เชิงรุก 65":36.0446,"หุ้นไทย":23.5416,"กองทุนอสังหาริมทรัพย์ไทย":20.9173,"หุ้นต่างประเทศ":26.9145,"มุ่งคุ้มครองเงินต้น 1":28.4161,"ตราสารหนี้ต่างประเทศ":27.6537,"ทองคำ":34.0799,"เชิงรุก 75":30.6336},"2567-06-28":{"เชิงรุก 35":32.1631,"ลงทุนพื้นฐานทั่วไป":28.9449,"ตราสารหนี้":22.8792,"เงินฝากและตราสารหนี้ระยะสั้น":20.8226,"เชิงรุก 20":28.0158,"เชิงรุก 65":36.8264,"หุ้นไทย":22.5477,"กองทุนอสังหาริมทรัพย์ไทย":19.0444,"หุ้นต่างประเทศ":28.2902,"มุ่งคุ้มครองเงินต้น 1":28.5298,"ตราสารหนี้ต่างประเทศ":27.5133,"ทองคำ":35.8735,"เชิงรุก 75":31.3472},"2567-09-30":{"เชิงรุก 35":31.8816,"ลงทุนพื้นฐานทั่วไป":28.5277,"ตราสารหนี้":23.1776,"เงินฝากและตราสารหนี้ระยะสั้น":20.9538,"เชิงรุก 20":27.9045,"เชิงรุก 65":35.7511,"หุ้นไทย":25.0038,"กองทุนอสังหาริมทรัพย์ไทย":23.3598,"หุ้นต่างประเทศ":26.4524,"ตราสารหนี้ต่างประเทศ":28.2202,"ทองคำ":35.6645,"เชิงรุก 75":30.3756},"2567-12-30":{"เชิงรุก 35":32.2897,"ลงทุนพื้นฐานทั่วไป":28.93,"ตราสารหนี้":23.4474,"เงินฝากและตราสารหนี้ระยะสั้น":21.0718,"เชิงรุก 20":28.2756,"เชิงรุก 65":36.4734,"หุ้นไทย":23.4289,"กองทุนอสังหาริมทรัพย์ไทย":22.4011,"หุ้นต่างประเทศ":27.3089,"ตราสารหนี้ต่างประเทศ":27.7334,"ทองคำ":37.3121,"เชิงรุก 75":31.0077,"กองทุนรวมวายุภักษ์":9.9963},"2568-03-31":{"เชิงรุก 35":32.0894,"ลงทุนพื้นฐานทั่วไป":29.0321,"ตราสารหนี้":23.755,"เงินฝากและตราสารหนี้ระยะสั้น":21.198,"เชิงรุก 20":28.391,"เชิงรุก 65":35.8697,"หุ้นไทย":20.9479,"กองทุนอสังหาริมทรัพย์ไทย":21.9664,"หุ้นต่างประเทศ":27.0276,"ตราสารหนี้ต่างประเทศ":28.0201,"ทองคำ":43.8976,"เชิงรุก 75":30.3794,"กองทุนรวมวายุภักษ์":10.0707},"2568-06-30":{"เชิงรุก 35":32.3393,"ลงทุนพื้นฐานทั่วไป":29.236,"ตราสารหนี้":24.1026,"เงินฝากและตราสารหนี้ระยะสั้น":21.3051,"เชิงรุก 20":28.5697,"เชิงรุก 65":36.6682,"หุ้นไทย":19.901,"กองทุนอสังหาริมทรัพย์ไทย":20.8936,"หุ้นต่างประเทศ":29.126,"ตราสารหนี้ต่างประเทศ":28.1939,"ทองคำ":44.5729,"เชิงรุก 75":31.0115,"กองทุนรวมวายุภักษ์":10.3703},"2568-09-30":{"เชิงรุก 35":33.7916,"ลงทุนพื้นฐานทั่วไป":30.1016,"ตราสารหนี้":24.3072,"เงินฝากและตราสารหนี้ระยะสั้น":21.4072,"เชิงรุก 20":29.4344,"เชิงรุก 65":39.0894,"หุ้นไทย":22.4542,"กองทุนอสังหาริมทรัพย์ไทย":23.0859,"หุ้นต่างประเทศ":31.5113,"ตราสารหนี้ต่างประเทศ":28.3694,"ทองคำ":51.7882,"เชิงรุก 75":33.2501,"กองทุนรวมวายุภักษ์":10.8187},"2568-10-31":{"เชิงรุก 35":34.1437,"ลงทุนพื้นฐานทั่วไป":30.2214,"ตราสารหนี้":24.1722,"เงินฝากและตราสารหนี้ระยะสั้น":21.4402,"เชิงรุก 20":29.5963,"เชิงรุก 65":39.8323,"หุ้นไทย":23.1042,"กองทุนอสังหาริมทรัพย์ไทย":22.9965,"หุ้นต่างประเทศ":32.4382,"ตราสารหนี้ต่างประเทศ":28.5395,"ทองคำ":53.5577,"เชิงรุก 75":33.9444,"กองทุนรวมวายุภักษ์":10.8187},"2568-11-28":{"เชิงรุก 35":34.0473,"ลงทุนพื้นฐานทั่วไป":30.2618,"ตราสารหนี้":24.2129,"เงินฝากและตราสารหนี้ระยะสั้น":21.4621,"เชิงรุก 20":29.6039,"เชิงรุก 65":39.5518,"หุ้นไทย":22.5795,"กองทุนอสังหาริมทรัพย์ไทย":23.4732,"หุ้นต่างประเทศ":31.9431,"ตราสารหนี้ต่างประเทศ":28.539,"ทองคำ":56.1615,"เชิงรุก 75":33.6748,"กองทุนรวมวายุภักษ์":10.9177},"2568-12-30":{"เชิงรุก 35":34.0469,"ลงทุนพื้นฐานทั่วไป":30.1287,"ตราสารหนี้":24.2908,"เงินฝากและตราสารหนี้ระยะสั้น":21.5002,"เชิงรุก 20":29.61,"เชิงรุก 65":39.6065,"หุ้นไทย":22.9261,"กองทุนอสังหาริมทรัพย์ไทย":24.5421,"หุ้นต่างประเทศ":31.964,"ตราสารหนี้ต่างประเทศ":28.3289,"ทองคำ":57.901,"เชิงรุก 75":33.6912,"กองทุนรวมวายุภักษ์":10.9177,"เกษียณสบายใจ 2569":10.0117,"การลงทุนตามหลักชะรีอะฮ์":9.9909},"2569-01-30":{"เชิงรุก 35":34.7208,"ลงทุนพื้นฐานทั่วไป":30.5308,"ตราสารหนี้":24.111,"เงินฝากและตราสารหนี้ระยะสั้น":21.5222,"เชิงรุก 20":29.9564,"เชิงรุก 65":41.0151,"หุ้นไทย":23.9242,"กองทุนอสังหาริมทรัพย์ไทย":24.4356,"หุ้นต่างประเทศ":33.6999,"ตราสารหนี้ต่างประเทศ":28.2588,"ทองคำ":64.582,"เชิงรุก 75":35.0246,"กองทุนรวมวายุภักษ์":11.2769,"เกษียณสบายใจ 2569":10.0242,"การลงทุนตามหลักชะรีอะฮ์":10.2711},"2569-02-27":{"เชิงรุก 35":35.2676,"ลงทุนพื้นฐานทั่วไป":30.968,"ตราสารหนี้":24.2967,"เงินฝากและตราสารหนี้ระยะสั้น":21.5479,"เชิงรุก 20":30.386,"เชิงรุก 65":41.8364,"หุ้นไทย":27.7015,"กองทุนอสังหาริมทรัพย์ไทย":25.5748,"หุ้นต่างประเทศ":34.1582,"ตราสารหนี้ต่างประเทศ":28.4954,"ทองคำ":69.1485,"เชิงรุก 75":35.7132,"กองทุนรวมวายุภักษ์":11.9758,"เกษียณสบายใจ 2569":10.0354,"การลงทุนตามหลักชะรีอะฮ์":10.4962},"2569-03-31":{"เชิงรุก 35":34.7536,"ลงทุนพื้นฐานทั่วไป":30.633,"ตราสารหนี้":24.0237,"เงินฝากและตราสารหนี้ระยะสั้น":21.5789,"เชิงรุก 20":29.9827,"เชิงรุก 65":41.0387,"หุ้นไทย":26.8283,"กองทุนอสังหาริมทรัพย์ไทย":24.6764,"หุ้นต่างประเทศ":32.6548,"ตราสารหนี้ต่างประเทศ":28.2346,"ทองคำ":65.1556,"เชิงรุก 75":35.011,"กองทุนรวมวายุภักษ์":11.5795,"เกษียณสบายใจ 2569":10.047,"การลงทุนตามหลักชะรีอะฮ์":10.4184},"2569-04-30":{"เชิงรุก 35":35.7115,"ลงทุนพื้นฐานทั่วไป":31.4851,"ตราสารหนี้":24.1391,"เงินฝากและตราสารหนี้ระยะสั้น":21.5967,"เชิงรุก 20":30.4609,"เชิงรุก 65":43.0793,"หุ้นไทย":27.6564,"กองทุนอสังหาริมทรัพย์ไทย":26.0171,"หุ้นต่างประเทศ":36.0952,"ตราสารหนี้ต่างประเทศ":28.3083,"ทองคำ":63.5011,"เชิงรุก 75":36.972,"กองทุนรวมวายุภักษ์":11.677,"เกษียณสบายใจ 2569":10.0573,"การลงทุนตามหลักชะรีอะฮ์":11.1194},"2569-05-29":{"เชิงรุก 35":36.2989,"ลงทุนพื้นฐานทั่วไป":31.9895,"ตราสารหนี้":24.0913,"เงินฝากและตราสารหนี้ระยะสั้น":21.6118,"เชิงรุก 20":30.7356,"เชิงรุก 65":44.4897,"หุ้นไทย":28.6902,"กองทุนอสังหาริมทรัพย์ไทย":26.3757,"หุ้นต่างประเทศ":38.4535,"ตราสารหนี้ต่างประเทศ":28.3794,"ทองคำ":62.3775,"เชิงรุก 75":38.3206,"กองทุนรวมวายุภักษ์":11.9951,"เกษียณสบายใจ 2569":10.0688,"การลงทุนตามหลักชะรีอะฮ์":11.8892},"2569-06-30":{"เชิงรุก 35":36.6123,"ลงทุนพื้นฐานทั่วไป":32.2259,"ตราสารหนี้":24.3136,"เงินฝากและตราสารหนี้ระยะสั้น":21.6331,"เชิงรุก 20":30.9162,"เชิงรุก 65":45.0417,"หุ้นไทย":29.5882,"กองทุนอสังหาริมทรัพย์ไทย":27.1843,"หุ้นต่างประเทศ":39.1155,"ตราสารหนี้ต่างประเทศ":28.5058,"ทองคำ":56.1448,"เชิงรุก 75":38.8111,"กองทุนรวมวายุภักษ์":12.1009,"เกษียณสบายใจ 2569":10.0805,"การลงทุนตามหลักชะรีอะฮ์":12.1174},"2569-07-31":{"เชิงรุก 35":36.5818,"ลงทุนพื้นฐานทั่วไป":32.2529,"ตราสารหนี้":24.3331,"เงินฝากและตราสารหนี้ระยะสั้น":21.6484,"เชิงรุก 20":30.895,"เชิงรุก 65":45.0231,"หุ้นไทย":31.073,"กองทุนอสังหาริมทรัพย์ไทย":28.3163,"หุ้นต่างประเทศ":38.4311,"ตราสารหนี้ต่างประเทศ":28.1844,"ทองคำ":56.9345,"เชิงรุก 75":38.7862,"กองทุนรวมวายุภักษ์":12.4721,"เกษียณสบายใจ 2569":10.0922,"การลงทุนตามหลักชะรีอะฮ์":11.6432},"2569-08-31":{"เชิงรุก 35":36.9315,"ลงทุนพื้นฐานทั่วไป":32.5545,"ตราสารหนี้":24.3408,"เงินฝากและตราสารหนี้ระยะสั้น":21.6639,"เชิงรุก 20":31.1372,"เชิงรุก 65":45.6777,"หุ้นไทย":30.9735,"กองทุนอสังหาริมทรัพย์ไทย":28.4724,"หุ้นต่างประเทศ":39.416,"ตราสารหนี้ต่างประเทศ":28.1089,"ทองคำ":62.0593,"เชิงรุก 75":39.4242,"กองทุนรวมวายุภักษ์":12.2559,"เกษียณสบายใจ 2569":10.1026,"การลงทุนตามหลักชะรีอะฮ์":12.0694},"2569-09-30":{"เชิงรุก 35":36.8137,"ลงทุนพื้นฐานทั่วไป":32.4655,"ตราสารหนี้":24.2886,"เงินฝากและตราสารหนี้ระยะสั้น":21.68,"เชิงรุก 20":30.9356,"เชิงรุก 65":45.8138,"หุ้นไทย":30.2592,"กองทุนอสังหาริมทรัพย์ไทย":28.3022,"หุ้นต่างประเทศ":39.8782,"ตราสารหนี้ต่างประเทศ":27.575,"ทองคำ":58.6751,"เชิงรุก 75":39.5988,"กองทุนรวมวายุภักษ์":11.9324,"เกษียณสบายใจ 2569":10.11,"การลงทุนตามหลักชะรีอะฮ์":12.1346},"2569-10-09":{"เชิงรุก 20":30.9961,"เชิงรุก 75":39.7079,"เงินฝากและตราสารหนี้ระยะสั้น":21.684,"ตราสารหนี้":24.3028,"ลงทุนพื้นฐานทั่วไป":32.5346,"กองทุนรวมวายุภักษ์":11.8246,"ตราสารหนี้ต่างประเทศ":27.6176,"เชิงรุก 35":36.894,"เชิงรุก 65":45.9378,"กองทุนอสังหาริมทรัพย์ไทย":27.8829,"หุ้นต่างประเทศ":40.0102,"หุ้นไทย":30.6343,"ทองคำ":59.2035,"การลงทุนตามหลักชะรีอะฮ์":12.1854}};</script>
+<script>
+// GPF My-GPF PDF parser. Input: pages = [{items:[{str,x,y,w}]}] where y = distance from top (baseline).
+(function(root){
+const MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const PLANS=['เชิงรุก 35','ลงทุนพื้นฐานทั่วไป','ตราสารหนี้ต่างประเทศ','ตราสารหนี้','เงินฝากและตราสารหนี้ระยะสั้น','เชิงรุก 20','เชิงรุก 65','เชิงรุก 75','หุ้นไทย','กองทุนอสังหาริมทรัพย์ไทย','หุ้นต่างประเทศ','ทองคำ','กองทุนรวมวายุภักษ์','เกษียณสบายใจ 2569','การลงทุนตามหลักชะรีอะฮ์','มุ่งคุ้มครองเงินต้น 1'];
+const ns=s=>s.replace(/\s+/g,'');
+const isNum=s=>/^-?[\d,]*\.?\d+$/.test(s)||/^-?[\d,]+\.?$/.test(s);
+function words(items){
+  const it=items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x0:i.x,x1:i.x+i.w,y:i.y}));
+  it.sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0);
+  const out=[];let cur=null;
+  for(const c of it){
+    const parts=c.s.split(/(\s+)/);
+    if(cur&&Math.abs(c.y-cur.y)<=2&&c.x0-cur.x1<2.6&&c.x0>=cur.x0-1&&!/^\s/.test(c.s)){cur.text+=c.s;cur.x1=Math.max(cur.x1,c.x1);}
+    else{ if(cur)out.push(cur); cur={text:c.s,x0:c.x0,x1:c.x1,y:c.y}; }
+    if(/\s$/.test(c.s)){out.push(cur);cur=null;}
+  }
+  if(cur)out.push(cur);
+  // split words that contain internal whitespace (whole-run items)
+  const res=[];
+  for(const w of out){
+    const t=w.text.trim(); if(!t)continue;
+    const segs=t.split(/\s+/);
+    if(segs.length===1){res.push({text:t,x0:w.x0,x1:w.x1,y:w.y});continue;}
+    const per=(w.x1-w.x0)/Math.max(1,w.text.length);let pos=w.x0+(w.text.length-w.text.trimStart().length)*per;
+    for(const s of segs){res.push({text:s,x0:pos,x1:pos+s.length*per,y:w.y});pos+=(s.length+1)*per;}
+  }
+  return res;
+}
+function parseDate(s){
+  s=ns(s);const m=s.match(/^(\d{1,2})(\D+?)(\d{4})/);if(!m)return null;
+  const mn=m[2];const j=MONTHS.findIndex(M=>M.startsWith(mn)||mn.startsWith(M));
+  if(j<0)return null;return `${m[3]}-${String(j+1).padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+function matchPlan(txt){
+  const t=ns(txt).replace(/^แผน/,'');
+  if(t.includes('เชิงรุก65'))return 'เชิงรุก 65';
+  const sorted=[...PLANS].sort((a,b)=>b.length-a.length);
+  for(const p of sorted){const pn=ns(p);if(t.includes('แผน'+pn)||t.startsWith(pn))return p;}
+  for(const p of sorted){const pn=ns(p);if(ns(txt).includes(pn))return p;}
+  for(const p of sorted){const pn=ns(p);if(t.length>=6&&pn.startsWith(t))return p;}
+  return null;
+}
+const num=s=>parseFloat(s.replace(/,/g,''));
+function blocksOf(ws,leftMax){
+  const left=ws.filter(w=>w.x0<leftMax&&/^\d{1,2}[^\d.,]/.test(w.text)||(w.x0<leftMax&&/^\d{1,2}$/.test(w.text)&&ws.some(v=>Math.abs(v.y-w.y)<2&&v.x0>w.x1&&v.x0<leftMax&&MONTHS.some(M=>M.startsWith(v.text.slice(0,3))))));
+  const starts=[...new Set(left.map(w=>Math.round(w.y)))].sort((a,b)=>a-b);
+  return starts.map((s,i)=>{const e=i+1<starts.length?starts[i+1]:1e9;return ws.filter(w=>w.y>=s-14&&w.y<e-14);});
+}
+function detectKind(allText){
+  const t=ns(allText);
+  if(t.includes('สรุปยอดเงินสมาชิก')||t.includes('จำนวนเงินทั้งหมด'))return 'summary';
+  if(t.includes('ตามแผนการลงทุน'))return 'plan';
+  if(t.includes('ตามประเภทเงิน'))return 'detail';
+  return 'unknown';
+}
+function kindOf(lab,amount){
+  const t=ns(lab);
+  if(t.includes('นำส่ง'))return 'contrib';
+  if(t.includes('ออก'))return 'switch_out';
+  if(t.includes('เข้า'))return 'switch_in';
+  return amount<0?'switch_out':'other';
+}
+function parsePlan(pages,warn){
+  const out=[];let cols=null,leftMax=90;
+  for(const pg of pages){
+    const ws=words(pg.items);
+    const navh=ws.filter(w=>w.text.includes('มูลค่าต่อ')).sort((a,b)=>a.x0-b.x0);
+    let body=ws;
+    if(navh.length){
+      const htop=Math.min(...navh.map(w=>w.y));
+      const dateH=ws.find(w=>w.text.includes('วันที่'));const listH=ws.find(w=>ns(w.text).startsWith('รายการ')&&!w.text.includes('เคลื่อนไหว'));
+      leftMax=(listH&&dateH)?(dateH.x1+listH.x0)/2:(listH?listH.x0-4:90);
+      const hdr=ws.filter(w=>w.y<htop-3&&w.y>htop-80&&!w.text.includes('รายการเคลื่อนไหว')&&w.x0>(listH?listH.x1:120));
+      const xs=navh.map(w=>w.x0-14).concat([1e9]);
+      cols=navh.map((w,k)=>{const lo=xs[k],hi=xs[k+1];const txt=hdr.filter(h=>{const c=(h.x0+h.x1)/2;return c>=lo&&c<hi;}).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(h=>h.text).join(' ');return{lo,hi,plan:matchPlan(txt),txt};});
+      const amtTop=Math.max(...ws.filter(w=>w.text.includes('จำนวนเงิน')).map(w=>w.y));
+      body=ws.filter(w=>w.y>amtTop+4);
+    }
+    if(!cols)continue;
+    const firstNumX=Math.min(...cols.map(c=>c.lo));
+    for(const bw of blocksOf(body,leftMax)){
+      const dtxt=bw.filter(w=>w.x0<leftMax).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(w=>w.text).join('');
+      const date=parseDate(dtxt);
+      const lab=bw.filter(w=>w.x0>=leftMax&&w.x0<firstNumX&&!isNum(w.text)).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(w=>w.text).join('');
+      const nums=bw.filter(w=>w.x0>=firstNumX-2&&/^-?[\d,.]+$/.test(w.text)).sort((a,b)=>a.y-b.y);
+      const merged=[];
+      for(const w of nums){const t=merged.find(m=>m.open&&!(w.x1<m.x0||w.x0>m.x1)&&w.y>m.y+3);
+        if(t){t.text+=w.text;t.x0=Math.min(t.x0,w.x0);t.x1=Math.max(t.x1,w.x1);t.open=false;} else merged.push({...w,open:true});}
+      const per={};
+      for(const m of merged){const c=cols.find(c=>m.x0>=c.lo&&m.x0<c.hi);if(c){(per[c.plan||c.txt]=per[c.plan||c.txt]||[]).push(m);}}
+      for(const [plan,ms] of Object.entries(per)){
+        ms.sort((a,b)=>a.x0-b.x0);const v=ms.map(m=>num(m.text));
+        if(v.length!==3){warn&&warn(`${date} ${plan}: อ่านตัวเลขได้ ${v.length} ช่อง`);continue;}
+        let [nav,units,amount]=v;
+        if(Math.abs(nav*units-amount)>Math.max(0.6,Math.abs(amount)*5e-4)){const f=Math.round(amount/nav*1e4)/1e4;warn&&warn(`${date} ${plan}: แก้จำนวนหน่วย ${units} → ${f}`);units=f;}
+        if(!date)warn&&warn(`อ่านวันที่ไม่ได้: "${dtxt}"`);
+        out.push({date,kind:kindOf(lab,amount),label:lab,plan:PLANS.includes(plan)?plan:plan,nav,units,amount});
+      }
+    }
+  }
+  return out;
+}
+function parseDetail(pages,warn){
+  const out=[];
+  for(const pg of pages){
+    const ws=words(pg.items);
+    const listH=ws.find(w=>ns(w.text).startsWith('รายการ')&&!w.text.includes('เคลื่อนไหว'));
+    const dateH=ws.find(w=>w.text.includes('วันที่'));
+    const leftMax=(listH&&dateH)?(dateH.x1+listH.x0)/2:(listH?listH.x0-4:90);
+    const hTop=Math.max(...ws.filter(w=>/\(บาท\)/.test(w.text)||w.text==='รวม').map(w=>w.y),0);
+    const body=ws.filter(w=>w.y>hTop+4);
+    for(const bw of blocksOf(body,leftMax)){
+      const dtxt=bw.filter(w=>w.x0<leftMax).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(w=>w.text).join('');
+      const date=parseDate(dtxt);
+      const nums=bw.filter(w=>w.x0>=leftMax&&/^-?[\d,]+\.\d\d$/.test(w.text)).sort((a,b)=>a.x0-b.x0);
+      const lab=bw.filter(w=>w.x0>=leftMax&&!isNum(w.text)).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x0-b.x0).map(w=>w.text).join('');
+      if(nums.length<6){warn&&warn(`detail ${date}: ตัวเลข ${nums.length} ช่อง`);continue;}
+      const v=nums.slice(-6).map(w=>num(w.text));
+      out.push({date,kind:kindOf(lab,v[5]),label:lab,initial:v[0],comp:v[1],saving:v[2],match:v[3],extra:v[4],total:v[5]});
+    }
+  }
+  return out;
+}
+function parseSummary(pages){
+  const ws=pages.flatMap(p=>words(p.items));
+  const lines={};for(const w of ws){const k=Math.round(w.y/3);(lines[k]=lines[k]||[]).push(w);}
+  const L=Object.values(lines).map(l=>l.sort((a,b)=>a.x0-b.x0)).map(l=>({t:ns(l.filter(w=>!/^-?[\d,]+\.\d\d$/.test(w.text)).map(w=>w.text).join('')),n:l.filter(w=>/^-?[\d,]+\.\d\d$/.test(w.text)).map(w=>num(w.text))}));
+  const g=lab=>{const l=L.find(l=>l.t.startsWith(ns(lab))&&l.n.length>=3);return l?l.n.slice(-3):null;};
+  const r={saving:g('1.เงินสะสม'),extra:g('2.เงินสะสมส่วนเพิ่ม'),initial:g('1.เงินประเดิม'),match:g('2.เงินสมทบ'),comp:g('3.เงินชดเชย'),memberTotal:g('รวมเงินสมาชิกส่งสะสม'),govTotal:g('รวมเงินรัฐส่งสะสม'),total:g('รวมเงินทั้งหมด')};
+  const all=ns(ws.map(w=>w.text).join(' '));const m=all.match(/ณวันที่(\d{1,2})(\D+?)(\d{4})/);
+  r.asOf=m?parseDate(m[1]+m[2]+m[3]):null; r.year=r.asOf?+r.asOf.slice(0,4):null;
+  return r;
+}
+function parseGpf(pages,warn){
+  const allText=pages.flatMap(p=>p.items.map(i=>i.str)).join('');
+  const kind=detectKind(allText);
+  if(kind==='plan')return{kind,rows:parsePlan(pages,warn)};
+  if(kind==='detail')return{kind,rows:parseDetail(pages,warn)};
+  if(kind==='summary')return{kind,summary:parseSummary(pages)};
+  return{kind};
+}
+const api={parseGpf,PLANS,MONTHS,parseDate,matchPlan};
+if(typeof module!=='undefined')module.exports=api;else root.GpfParse=api;
+})(this);
+
+// Parse NAV text pasted from gpf.or.th "มูลค่ากองทุนส่วนสมาชิก" and rows from GPF Excel exports
+(function(root){
+const PLANS=['เชิงรุก 35','ลงทุนพื้นฐานทั่วไป','ตราสารหนี้ต่างประเทศ','ตราสารหนี้','เงินฝากและตราสารหนี้ระยะสั้น','เชิงรุก 20','เชิงรุก 65','เชิงรุก 75','หุ้นไทย','กองทุนอสังหาริมทรัพย์ไทย','หุ้นต่างประเทศ','ทองคำ','กองทุนรวมวายุภักษ์','เกษียณสบายใจ 2569','การลงทุนตามหลักชะรีอะฮ์','มุ่งคุ้มครองเงินต้น 1'];
+const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/ /g,'\\s*');
+function dmy(s){const m=String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(!m)return null;let y=+m[3];if(y<2400)y+=543;return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}
+function parseNavText(text){
+  const t=text.replace(/\u00a0/g,' ');
+  // split into announcement blocks by date
+  const re=/วันที่\s*ประกาศใช้\s*(\d{1,2}\/\d{1,2}\/\d{4})/g;let m;const idx=[];
+  while((m=re.exec(t)))idx.push({i:m.index,date:dmy(m[1])});
+  if(!idx.length){const d=t.match(/\d{1,2}\/\d{1,2}\/\d{4}/);if(d)idx.push({i:0,date:dmy(d[0])});}
+  const out={};
+  idx.forEach((b,k)=>{
+    const seg=t.slice(b.i,k+1<idx.length?idx[k+1].i:undefined);
+    const vals={};
+    for(const p of PLANS){
+      const r=new RegExp('แผน\\s*'+esc(p)+'(?![ก-๙])\\s*\\*?\\s*(?:\\([^)]*\\))?\\s*([\\d,]+\\.\\d{2,6})');
+      const mm=seg.match(r);if(mm)vals[p]=parseFloat(mm[1].replace(/,/g,''));
+    }
+    if(Object.keys(vals).length&&b.date&&!out[b.date])out[b.date]=vals;
+  });
+  return out;
+}
+function parseNavRows(rows){ // rows: array of arrays (SheetJS header:1)
+  const hi=rows.findIndex(r=>r&&r.some(c=>typeof c==='string'&&/แผนเชิงรุก|แผนหุ้น|แผนลงทุน/.test(c)));
+  if(hi<0)return{};
+  const hdr=rows[hi].map(c=>typeof c==='string'?c.trim():c);
+  const out={};
+  for(const r of rows.slice(hi+1)){
+    if(!r||r[0]==null)continue;
+    let d=null;
+    if(typeof r[0]==='number'&&r[0]>20000&&r[0]<80000){const js=new Date(Math.round((r[0]-25569)*864e5));d=`${js.getUTCFullYear()+543}-${String(js.getUTCMonth()+1).padStart(2,'0')}-${String(js.getUTCDate()).padStart(2,'0')}`;}
+    else if(r[0] instanceof Date){d=`${r[0].getFullYear()+543}-${String(r[0].getMonth()+1).padStart(2,'0')}-${String(r[0].getDate()).padStart(2,'0')}`;}
+    else d=dmy(r[0]);
+    if(!d)continue;
+    const v={};
+    hdr.forEach((h,j)=>{if(typeof h==='string'&&h.startsWith('แผน')){const p=h.replace(/^แผน/,'').replace(/\*.*$/,'').trim();const x=typeof r[j]==='number'?r[j]:parseFloat(String(r[j]||'').replace(/,/g,''));if(x>0&&PLANS.includes(p))v[p]=x;}});
+    if(Object.keys(v).length)out[d]=v;
+  }
+  return out;
+}
+const api={parseNavText,parseNavRows,dmy};
+if(typeof module!=='undefined')module.exports=api;else root.NavParse=api;
+})(this);
+
+</script>
+<script>
+/* GPF Journal — app logic. Data: NAV_OFFICIAL (embedded, public) + db: p/ledger, p/user (owner-only), nav/*, news/* */
+'use strict';
+const SA = typeof GPFJ_STANDALONE !== 'undefined' && GPFJ_STANDALONE === true;
+const PLANS = GpfParse.PLANS.filter(p => p !== 'มุ่งคุ้มครองเงินต้น 1');
+const SHORT = {'การลงทุนตามหลักชะรีอะฮ์':'ชะรีอะฮ์','เงินฝากและตราสารหนี้ระยะสั้น':'เงินฝากฯ ระยะสั้น','กองทุนอสังหาริมทรัพย์ไทย':'อสังหาฯ ไทย','ตราสารหนี้ต่างประเทศ':'ตราสารหนี้ ตปท.','หุ้นต่างประเทศ':'หุ้น ตปท.','ลงทุนพื้นฐานทั่วไป':'พื้นฐานทั่วไป','กองทุนรวมวายุภักษ์':'วายุภักษ์','เกษียณสบายใจ 2569':'เกษียณสบายใจ 69'};
+const sh = p => SHORT[p] || p;
+const ASSETS = [
+  {key:'หุ้นไทย', plans:['หุ้นไทย','กองทุนรวมวายุภักษ์']},
+  {key:'หุ้นต่างประเทศ', plans:['หุ้นต่างประเทศ','การลงทุนตามหลักชะรีอะฮ์']},
+  {key:'ทองคำ', plans:['ทองคำ']},
+  {key:'ตราสารหนี้', plans:['ตราสารหนี้','ตราสารหนี้ต่างประเทศ','เงินฝากและตราสารหนี้ระยะสั้น']},
+  {key:'อสังหาริมทรัพย์', plans:['กองทุนอสังหาริมทรัพย์ไทย']},
+  {key:'แผนผสม', plans:['เชิงรุก 35','เชิงรุก 65','ลงทุนพื้นฐานทั่วไป','เชิงรุก 20','เชิงรุก 75','เกษียณสบายใจ 2569']},
+];
+const MTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const GPF_URL = 'https://www.gpf.or.th/thai2019/About/main.php?page=memberfund&lang=th&menu=statistic';
+
+/* ---------- utils ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const d2t = s => { const [y,m,d] = s.split('-').map(Number); return Math.round(Date.UTC(y-543, m-1, d) / 864e5); };
+const t2d = t => { const x = new Date(t*864e5); return `${x.getUTCFullYear()+543}-${String(x.getUTCMonth()+1).padStart(2,'0')}-${String(x.getUTCDate()).padStart(2,'0')}`; };
+const todayD = () => { const n = new Date(); return `${n.getFullYear()+543}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
+const thd = (s, long) => { if (!s) return '—'; const [y,m,d] = s.split('-').map(Number); return long ? `${d} ${MTH[m-1]} ${y}` : `${d} ${MTH[m-1]} ${String(y).slice(2)}`; };
+const r2 = x => Math.round(x*100)/100, r4 = x => Math.round(x*1e4)/1e4;
+const nf = (x, dp = 2) => (x == null || !isFinite(x)) ? '—' : x.toLocaleString('en-US', {minimumFractionDigits: dp, maximumFractionDigits: dp});
+const sgn = x => x > 0.004 ? '+' : (x < -0.004 ? '−' : '');
+const cls = x => x > 0.004 ? 'up' : (x < -0.004 ? 'down' : 'flat');
+let HIDE = false;
+const money = (x, dp = 2, signed = false) => { if (x == null || !isFinite(x)) return '—'; if (HIDE) return signed ? (x >= 0 ? '+฿•••••' : '−฿•••••') : '฿•••••'; return (signed ? sgn(x) : (x < 0 ? '−' : '')) + '฿' + nf(Math.abs(x), dp); };
+const moneyN = (x, dp = 2, signed = false) => { if (x == null || !isFinite(x)) return '—'; if (HIDE) return '•••••'; return (signed ? sgn(x) : (x < 0 ? '−' : '')) + nf(Math.abs(x), dp); };
+const pct = (x, dp = 2) => (x == null || !isFinite(x)) ? '—' : `${sgn(x*100)}${nf(Math.abs(x*100), dp)}%`;
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const store = { get(k, d) { try { const v = localStorage.getItem('gpfj:' + k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem('gpfj:' + k, JSON.stringify(v)); } catch {} } };
+function toast(msg) { const r = $('#toastRoot'); r.innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => r.innerHTML = '', 2600); }
+
+/* ---------- state ---------- */
+const S = {
+  ledger: store.get('ledger', null),            // {txns, detail, summary, files, importedAt}
+  user: store.get('user', {entries: [], checks: [], settings: {oomperm: 0, theme: 'system'}}),
+  navDb: store.get('navDb', {}), navFile: store.get('navFile', {}),                // date -> {values, source, savedAt}
+  news: store.get('news', []),
+  mode: 'loading',                              // loading | db | local
+  isOwner: true,
+  tab: 'home', asOf: null, range: '1Y', histSeg: 'eras', fundPeriod: '1Y', fundSel: null, fundRange: '1Y', newsFilter: 'mine', txYear: null,
+};
+S.user.entries ||= []; S.user.checks ||= []; S.user.settings ||= {oomperm: 0, theme: 'system'};
+HIDE = store.get('hide', false);
+
+/* ---------- model ---------- */
+let NAV = {}, NAVDATES = [], T = [], SW = [], SERIES = [];
+function buildNav() {
+  NAV = {}; const add = (plan, date, v, src) => { if (!(v > 0)) return; (NAV[plan] ||= new Map()); const m = NAV[plan]; const prio = {official:3, gpf:3, excel:3, auto:3, manual:2, statement:1, summary:0, entry:0}; const old = m.get(date); if (!old || prio[src] >= prio[old.src]) m.set(date, {v, src}); };
+  const dates = new Set();
+  for (const [d, vals] of Object.entries(NAV_OFFICIAL)) { dates.add(d); for (const [p, v] of Object.entries(vals)) add(p, d, v, 'official'); }
+  for (const [d, doc] of Object.entries(S.navFile || {})) { if (!doc || !doc.values) continue; dates.add(d); for (const [p, v] of Object.entries(doc.values)) add(p, d, v, 'auto'); }
+  for (const [d, doc] of Object.entries(S.navDb)) { if (!doc || !doc.values) continue; dates.add(d); for (const [p, v] of Object.entries(doc.values)) add(p, d, v, doc.source || 'manual'); }
+  if (S.ledger) {
+    for (const t of S.ledger.txns) add(t.plan, t.date, t.nav, 'statement');
+  }
+  for (const e of S.user.entries) if (e.nav) for (const [p, v] of Object.entries(e.nav)) add(p, e.date, v, 'entry');
+  for (const p in NAV) NAV[p] = [...NAV[p].entries()].map(([d, o]) => ({d, t: d2t(d), v: o.v, src: o.src})).sort((a, b) => a.t - b.t);
+  NAVDATES = [...dates].sort();
+}
+function navAt(plan, t) { const a = NAV[plan]; if (!a || !a.length || a[0].t > t) return null; let lo = 0, hi = a.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m].t <= t) lo = m; else hi = m - 1; } return a[lo]; }
+function navExact(plan, t) { const p = navAt(plan, t); return p && p.t === t ? p : null; }
+function navNear(plan, t, days = 25) { const a = NAV[plan] || []; let best = null; for (const p of a) if (Math.abs(p.t - t) <= days && (!best || Math.abs(p.t - t) < Math.abs(best.t - t))) best = p; return best || navAt(plan, t); }
+
+function holdingsAt(t, upto = T.length) { const h = {}; for (let i = 0; i < upto; i++) { const x = T[i]; if (x.t > t) break; h[x.plan] = (h[x.plan] || 0) + x.units; } for (const k in h) if (Math.abs(h[k]) < 1e-6) delete h[k]; return h; }
+function valueOf(h, t) { let v = 0; const parts = {}; let missing = false; for (const [p, u] of Object.entries(h)) { const n = navAt(p, t); if (!n) { missing = true; continue; } const x = r2(u * n.v); parts[p] = {units: u, nav: n.v, navDate: n.d, value: x}; v += x; } return {value: r2(v), parts, missing}; }
+const valueAt = t => valueOf(holdingsAt(t), t);
+function mixAt(t) { // allocation for new contributions at day t
+  let mix = null;
+  const days = [...new Set(T.filter(x => x.t < t || (x.t === t && x.kind !== 'contrib')).map(x => x.t))];
+  for (const d of days) {
+    const g = T.filter(x => x.t === d);
+    if (g.some(x => x.kind === 'switch_in' || x.kind === 'switch_out')) { const h = holdingsAt(d); const v = valueOf(h, d); const tot = v.value || 1; mix = {}; for (const [p, o] of Object.entries(v.parts)) mix[p] = o.value / tot; }
+    else if (g.some(x => x.kind === 'contrib')) { const c = g.filter(x => x.kind === 'contrib'); const tot = c.reduce((s, x) => s + x.amount, 0) || 1; mix = {}; for (const x of c) mix[x.plan] = (mix[x.plan] || 0) + x.amount / tot; }
+  }
+  return mix;
+}
+function buildTxns() {
+  T = (S.ledger?.txns || []).map(x => ({...x, t: d2t(x.date), src: 'pdf'}));
+  const order = {switch_out: 0, switch_in: 1, adjust: 2, contrib: 3};
+  const sortT = () => T.sort((a, b) => a.t - b.t || (order[a.kind] ?? 9) - (order[b.kind] ?? 9));
+  sortT();
+  const pdfContrib = T.filter(x => x.kind === 'contrib').map(x => x.t), pdfSwitch = T.filter(x => x.kind === 'switch_in').map(x => x.t);
+  const lastPdf = T.length ? T[T.length - 1].t : -1;
+  const ents = [...S.user.entries].sort((a, b) => d2t(a.date) - d2t(b.date));
+  for (const e of ents) {
+    const t = d2t(e.date); e._status = 'ok'; e._est = false; e._rows = [];
+    if (e.type === 'contrib') {
+      if (pdfContrib.some(x => Math.abs(x - t) <= 4) || (t <= lastPdf && S.ledger?.files?.length)) { e._status = 'dup'; continue; }
+      const mix = e.alloc || mixAt(t); if (!mix) { e._status = 'nomix'; continue; }
+      for (const [p, w] of Object.entries(mix)) { if (w <= 0) continue; const amt = r2(e.amount * w); const ex = navExact(p, t); const nv = e.units?.[p] ? amt / e.units[p] : (ex ? ex.v : navAt(p, t)?.v); if (!nv) { e._status = 'nonav'; continue; } if (!ex && !e.units?.[p]) e._est = true; const u = e.units?.[p] ?? r4(amt / nv); const row = {date: e.date, t, kind: 'contrib', plan: p, nav: r4(nv), units: u, amount: amt, src: 'entry', est: !ex && !e.units?.[p], eid: e.id}; T.push(row); e._rows.push(row); }
+    } else if (e.type === 'switch') {
+      if (pdfSwitch.some(x => Math.abs(x - t) <= 4)) { e._status = 'dup'; continue; }
+      sortT(); const hb = holdingsAt(t);
+      let total = 0; const outs = [];
+      for (const [p, u] of Object.entries(hb)) { const ex = navExact(p, t); const nv = ex ? ex.v : navAt(p, t)?.v; if (!nv) continue; if (!ex) e._est = true; const amt = r2(u * nv); total += amt; outs.push({date: e.date, t, kind: 'switch_out', plan: p, nav: nv, units: -u, amount: -amt, src: 'entry', est: !ex, eid: e.id}); }
+      const ins = [];
+      for (const [p, w] of Object.entries(e.to || {})) { if (w <= 0) continue; const ex = navExact(p, t); const nv = ex ? ex.v : navAt(p, t)?.v; if (!nv) { e._status = 'nonav'; continue; } if (!ex) e._est = true; const amt = r2(total * w); ins.push({date: e.date, t, kind: 'switch_in', plan: p, nav: nv, units: r4(amt / nv), amount: amt, src: 'entry', est: !ex, eid: e.id}); }
+      if (e._status === 'ok') { T.push(...outs, ...ins); e._rows = [...outs, ...ins]; }
+    } else if (e.type === 'units') {
+      sortT(); const hb = holdingsAt(t);
+      for (const p of new Set([...Object.keys(hb), ...Object.keys(e.units || {})])) { const target = e.units?.[p] || 0; const diff = r4(target - (hb[p] || 0)); if (Math.abs(diff) >= 0.0001) { const row = {date: e.date, t, kind: 'adjust', plan: p, nav: navAt(p, t)?.v || 0, units: diff, amount: 0, src: 'entry', eid: e.id}; T.push(row); e._rows.push(row); } }
+    }
+    sortT();
+  }
+  sortT();
+  // switch events
+  const swDays = [...new Set(T.filter(x => x.kind === 'switch_in').map(x => x.t))];
+  SW = swDays.map(t => ({t, date: t2d(t), outs: T.filter(x => x.t === t && x.kind === 'switch_out'), ins: T.filter(x => x.t === t && x.kind === 'switch_in')}));
+}
+function principalAt(t) { let s = 0; for (const x of T) { if (x.t > t) break; if (x.kind === 'contrib') s += x.amount; } return r2(s); }
+function flows(a, b) { return T.filter(x => x.kind === 'contrib' && x.t > a && x.t <= b); }
+function dietz(a, b) { // modified Dietz over (a,b]
+  const V0 = valueAt(a).value, V1 = valueAt(b).value; const F = flows(a, b); const C = F.reduce((s, x) => s + x.amount, 0);
+  const span = Math.max(1, b - a); const W = F.reduce((s, x) => s + x.amount * (b - x.t) / span, 0);
+  const gain = V1 - V0 - C; const denom = V0 + W; return {V0, V1, C, gain: r2(gain), r: denom > 0 ? gain / denom : null, simple: (V0 + C) > 0 ? gain / (V0 + C) : null, a, b};
+}
+function xirr(cfs) { // cfs [{t, amt}] amt negative = invest
+  if (cfs.length < 2) return null; const t0 = cfs[0].t; let r = 0.08;
+  for (let i = 0; i < 60; i++) { let f = 0, df = 0; for (const c of cfs) { const y = (c.t - t0) / 365; const d = Math.pow(1 + r, y); f += c.amt / d; df -= y * c.amt / (d * (1 + r)); } if (Math.abs(df) < 1e-12) break; const nr = r - f / df; if (!isFinite(nr)) return null; if (Math.abs(nr - r) < 1e-9) { r = nr; break; } r = Math.max(-0.99, nr); }
+  return r;
+}
+function buildSeries() {
+  SERIES = []; if (!T.length) return;
+  const t0 = T[0].t; const days = new Set(T.map(x => x.t));
+  for (const p of new Set(T.map(x => x.plan))) for (const n of (NAV[p] || [])) if (n.t >= t0) days.add(n.t);
+  for (const d of NAVDATES) if (d2t(d) >= t0) days.add(d2t(d));
+  const lastMkt = NAVDATES.length ? d2t(NAVDATES[NAVDATES.length - 1]) : 1e9;
+  const arr = [...days].filter(t => t <= lastMkt).sort((a, b) => a - b);
+  for (const t of arr) { const v = valueAt(t); if (v.missing && !v.value) continue; SERIES.push({t, date: t2d(t), value: v.value, principal: principalAt(t)}); }
+}
+function addSummaryNav() { // derive NAV point from a statement total when a single plan is held
+  if (!S.ledger?.summary) return;
+  for (const s of S.ledger.summary) { if (!s.asOf || !s.total) continue; const t = d2t(s.asOf); const h = holdingsAt(t); const ps = Object.keys(h); if (ps.length !== 1) continue; const p = ps[0]; const near = navAt(p, t); if (near && t - near.t <= 4) continue; const v = r4(s.total[2] / h[p]); (NAV[p] ||= []).push({d: s.asOf, t, v, src: 'summary'}); NAV[p].sort((a, b) => a.t - b.t); }
+}
+function recompute() {
+  buildNav(); buildTxns(); addSummaryNav(); buildSeries();
+  const last = SERIES.length ? SERIES[SERIES.length - 1].date : null;
+  if (!S.asOf || !SERIES.some(s => s.date === S.asOf) || S.asOfAuto) { S.asOf = last; S.asOfAuto = true; }
+  render();
+}
+
+/* ---------- charts ---------- */
+function lineChart(el, opt) {
+  const W = Math.max(280, el.clientWidth || 340), H = opt.height || 190, padL = opt.padL ?? 4, padR = opt.padR ?? 46, padT = 10, padB = 22;
+  const all = opt.series.flatMap(s => s.pts); if (!all.length) { el.innerHTML = '<div class="note" style="padding:30px 0;text-align:center">ยังไม่มีข้อมูลในช่วงนี้</div>'; return; }
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x1 === x0) x1 = x0 + 1;
+  let y0 = Math.min(...ys), y1 = Math.max(...ys); if (opt.zero) y0 = Math.min(0, y0); const pad = (y1 - y0) * 0.08 || Math.abs(y1) * 0.05 || 1; y0 -= pad; y1 += pad;
+  const X = x => padL + (x - x0) / (x1 - x0) * (W - padL - padR), Y = y => padT + (1 - (y - y0) / (y1 - y0)) * (H - padT - padB);
+  const ticks = niceTicks(y0, y1, 4);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label || 'กราฟ')}">`;
+  for (const v of ticks) svg += `<line x1="${padL}" x2="${W - padR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line-2)" stroke-width="1"/><text x="${W - padR + 6}" y="${Y(v) + 4}" font-size="10.5" fill="var(--muted)">${esc(opt.yfmt ? opt.yfmt(v) : v)}</text>`;
+  const xt = xTicks(x0, x1); for (const t of xt) svg += `<text x="${X(t)}" y="${H - 5}" font-size="10.5" fill="var(--muted)" text-anchor="${X(t) < 22 ? 'start' : X(t) > W - padR - 16 ? 'end' : 'middle'}">${esc(xLabel(t, x1 - x0))}</text>`;
+  if (opt.baseline != null && opt.baseline > y0 && opt.baseline < y1) svg += `<line x1="${padL}" x2="${W - padR}" y1="${Y(opt.baseline)}" y2="${Y(opt.baseline)}" stroke="var(--muted)" stroke-dasharray="2 3" stroke-width="1"/>`;
+  for (const s of opt.series) {
+    if (!s.pts.length) continue;
+    const d = s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ');
+    if (s.area) svg += `<path d="${d} L${X(s.pts[s.pts.length - 1][0]).toFixed(1)} ${Y(y0)} L${X(s.pts[0][0]).toFixed(1)} ${Y(y0)} Z" fill="${s.color}" fill-opacity=".12"/>`;
+    svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.width || 2}" ${s.dash ? 'stroke-dasharray="5 4"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
+    const lp = s.pts[s.pts.length - 1]; if (s.end !== false) svg += `<circle cx="${X(lp[0])}" cy="${Y(lp[1])}" r="3.5" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`;
+  }
+  for (const m of (opt.markers || [])) if (m.t >= x0 && m.t <= x1) svg += `<g><line x1="${X(m.t)}" x2="${X(m.t)}" y1="${padT}" y2="${H - padB}" stroke="var(--accent)" stroke-opacity=".35" stroke-dasharray="2 3"/><rect x="${X(m.t) - 4}" y="${H - padB - 4}" width="8" height="8" transform="rotate(45 ${X(m.t)} ${H - padB})" fill="var(--accent)"/></g>`;
+  svg += `<line class="xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/><g class="hd"></g></svg><div class="tip" hidden></div>`;
+  el.innerHTML = svg; el.classList.add('chart');
+  const sv = el.querySelector('svg'), xh = sv.querySelector('.xh'), hd = sv.querySelector('.hd'), tip = el.querySelector('.tip');
+  const xsAll = [...new Set(opt.series.flatMap(s => s.pts.map(p => p[0])))].sort((a, b) => a - b);
+  const move = ev => {
+    const r = sv.getBoundingClientRect(); const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left; const sx = px * W / r.width;
+    let best = xsAll[0]; for (const x of xsAll) if (Math.abs(X(x) - sx) < Math.abs(X(best) - sx)) best = x;
+    xh.setAttribute('x1', X(best)); xh.setAttribute('x2', X(best)); xh.setAttribute('visibility', 'visible');
+    let dots = ''; const vals = [];
+    for (const s of opt.series) { let p = null; for (const q of s.pts) if (q[0] <= best) p = q; if (!p) continue; if (p[0] === best || s.step) { dots += `<circle cx="${X(best)}" cy="${Y(p[1])}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`; } vals.push({s, v: p[1], p}); }
+    hd.innerHTML = dots;
+    tip.innerHTML = opt.tip ? opt.tip(best, vals) : `<b>${thd(t2d(best), true)}</b>`; tip.hidden = false;
+    const tw = tip.offsetWidth; let left = X(best) * r.width / W + 10; if (left + tw > r.width) left = X(best) * r.width / W - tw - 10; tip.style.left = Math.max(0, left) + 'px';
+  };
+  const leave = () => { xh.setAttribute('visibility', 'hidden'); hd.innerHTML = ''; tip.hidden = true; };
+  sv.addEventListener('pointermove', move); sv.addEventListener('pointerdown', move); sv.addEventListener('pointerleave', leave); sv.addEventListener('touchmove', move, {passive: true}); sv.addEventListener('touchend', () => setTimeout(leave, 1800));
+}
+function barChart(el, items, opt = {}) { // items [{label, v, title}]
+  const W = Math.max(280, el.clientWidth || 340), H = opt.height || 150, padT = 8, padB = 20, padR = 46;
+  if (!items.length) { el.innerHTML = ''; return; }
+  const vs = items.map(i => i.v); let y0 = Math.min(0, ...vs), y1 = Math.max(0, ...vs); if (y1 === y0) y1 = 1; const pd = (y1 - y0) * .08; y0 -= y0 < 0 ? pd : 0; y1 += pd;
+  const bw = (W - padR) / items.length; const Y = y => padT + (1 - (y - y0) / (y1 - y0)) * (H - padT - padB);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label || 'กราฟแท่ง')}">`;
+  for (const v of niceTicks(y0, y1, 3)) svg += `<line x1="0" x2="${W - padR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line-2)"/><text x="${W - padR + 6}" y="${Y(v) + 4}" font-size="10.5" fill="var(--muted)">${esc(opt.yfmt ? opt.yfmt(v) : v)}</text>`;
+  svg += `<line x1="0" x2="${W - padR}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--muted)"/>`;
+  const step = Math.ceil(items.length / 8);
+  items.forEach((it, i) => { const x = i * bw + Math.max(1, bw * .12), w = Math.max(2, bw * .76), y = Math.min(Y(0), Y(it.v)), h = Math.max(1, Math.abs(Y(it.v) - Y(0)));
+    svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(3, w / 2)}" fill="${it.v >= 0 ? 'var(--up)' : 'var(--down)'}"><title>${esc(it.title || '')}</title></rect>`;
+    if (i % step === 0) svg += `<text x="${(x + w / 2).toFixed(1)}" y="${H - 5}" font-size="10" fill="var(--muted)" text-anchor="middle">${esc(it.label)}</text>`; });
+  el.innerHTML = svg + '</svg>'; el.classList.add('chart');
+}
+function niceTicks(a, b, n) { const span = b - a; if (span <= 0) return [a]; const step0 = span / n; const mag = Math.pow(10, Math.floor(Math.log10(step0))); const f = step0 / mag; const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag; const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
+function xTicks(a, b) { const span = b - a; const out = []; const s = new Date(a * 864e5), e = new Date(b * 864e5);
+  if (span > 900) { for (let y = s.getUTCFullYear() + 1; y <= e.getUTCFullYear(); y++) out.push(Date.UTC(y, 0, 1) / 864e5); const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); }
+  let m = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 1)); const stepM = span > 400 ? 3 : span > 150 ? 2 : 1;
+  while (m <= e) { out.push(m / 864e5); m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + stepM, 1)); }
+  const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); }
+function xLabel(t, span) { const d = new Date(t * 864e5); return span > 900 ? String(d.getUTCFullYear() + 543) : (d.getUTCMonth() === 0 ? `${MTH[0]} ${String(d.getUTCFullYear() + 543).slice(2)}` : MTH[d.getUTCMonth()]); }
+const kfmt = v => HIDE ? '•••' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
+
+/* ---------- views ---------- */
+const views = {home: renderHome, history: renderHistory, funds: renderFunds, news: renderNews, record: renderRecord};
+function render() {
+  document.documentElement.toggleAttribute('data-hide', HIDE);
+  $('#btnHide').setAttribute('aria-pressed', HIDE);
+  for (const s of document.querySelectorAll('[data-view]')) s.hidden = s.id !== 'v-' + S.tab;
+  for (const b of document.querySelectorAll('.tabbar button')) b.toggleAttribute('aria-current', b.dataset.tab === S.tab), b.dataset.tab === S.tab && b.setAttribute('aria-current', 'page');
+  const lastNav = NAVDATES[NAVDATES.length - 1];
+  $('#hdrSub').textContent = lastNav ? `NAV ล่าสุด ${thd(lastNav, true)}` : 'สมุดบัญชี กบข. ส่วนตัว';
+  views[S.tab]();
+}
+function emptyPortfolio(el) {
+  if (S.mode === 'loading') { el.innerHTML = `<div class="card stack" style="margin-top:8px"><div class="skel" style="width:40%"></div><div class="skel" style="height:40px;width:70%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><p class="note" style="margin:0">กำลังโหลดพอร์ตของคุณ…</p></div>`; return true; }
+  if (T.length) return false;
+  if (SA) { el.innerHTML = onboarding(); return true; }
+  el.innerHTML = `<div class="card empty" style="margin-top:8px"><h3>ยังไม่มีข้อมูลพอร์ต</h3><p class="note">นำเข้าไฟล์ PDF ใบแจ้งยอดจากแอป My GPF (ตามแผนการลงทุน, ตามประเภทเงิน และสรุปยอด) แล้วแอปจะคำนวณหน่วย มูลค่า และกำไรให้ทั้งหมด${S.mode === 'local' ? '<br><br>ตอนนี้เปิดหน้านี้นอกแอป Claude จึงอ่านข้อมูลที่บันทึกไว้ไม่ได้ เปิดลิงก์นี้ในแอป Claude เพื่อดูพอร์ตของคุณ' : ''}</p><button class="btn" data-act="import">นำเข้า PDF</button></div>`;
+  return true;
+}
+function onboarding() {
+  return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
+  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ขอไฟล์ PDF จากแอป My GPF</div><div class="s">เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ทุกปีที่เป็นสมาชิก (สำคัญที่สุด) จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
+  <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
+  <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
+  <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
+  <p class="note" style="margin:0">ระหว่างนี้ดูหน้า "กองทุน" เพื่อจัดอันดับและเทียบผลตอบแทนทุกแผนได้เลย</p></div>`;
+}
+function asOfT() { return S.asOf ? d2t(S.asOf) : 0; }
+function prevPoint(t, minGap = 1) { let p = null; for (const s of SERIES) { if (s.t <= t - minGap) p = s; else break; } return p; }
+function periodStats(t) {
+  const out = {};
+  const prev = prevPoint(t); if (prev) out.last = {...dietz(prev.t, t), label: 'ล่าสุด', since: prev.date};
+  const w = prevPoint(t, 7); if (w) out.week = {...dietz(w.t, t), label: '1 สัปดาห์', since: w.date};
+  const dt = new Date(t * 864e5); const mStart = Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1) / 864e5; const m = prevPoint(mStart, 0) ; if (m) out.month = {...dietz(m.t, t), label: 'เดือนนี้', since: m.date};
+  const yStart = Date.UTC(dt.getUTCFullYear(), 0, 1) / 864e5; const y = prevPoint(yStart, 0); if (y) out.ytd = {...dietz(y.t, t), label: `ปี ${dt.getUTCFullYear() + 543}`, since: y.date};
+  const V = valueAt(t).value, P = principalAt(t); const cfs = T.filter(x => x.kind === 'contrib' && x.t <= t).map(x => ({t: x.t, amt: -x.amount})); cfs.push({t, amt: V});
+  out.all = {gain: r2(V - P), simple: P ? (V - P) / P : null, r: P ? (V - P) / P : null, irr: xirr(cfs), label: 'ตั้งแต่เริ่ม', since: T[0] ? T[0].date : null, C: P, V1: V, V0: 0};
+  return out;
+}
+function renderHome() {
+  const el = $('#v-home'); if (emptyPortfolio(el)) return;
+  const t = asOfT(); const v = valueAt(t); const P = principalAt(t); const st = periodStats(t);
+  const idx = SERIES.findIndex(s => s.date === S.asOf);
+  const last = st.last; const gpfPart = sumGov(t);
+  const lastMktD = NAVDATES[NAVDATES.length - 1];
+  const waiting = S.user.entries.filter(e => e._status === 'ok' && e.date > lastMktD).length;
+  const statusPend = S.user.entries.filter(e => e._est && e._status === 'ok' && e.date <= lastMktD).length;
+  const parts = Object.entries(v.parts).sort((a, b) => b[1].value - a[1].value);
+  const est = parts.some(([p, o]) => o.navDate !== S.asOf);
+  el.innerHTML = `
+  ${!SA && S.mode === 'local' && S.ledger ? `<div class="banner" style="margin-top:8px">กำลังแสดงข้อมูลที่จำไว้ในเครื่องนี้ การบันทึกใหม่จะเก็บในเครื่องนี้เท่านั้น</div>` : ''}
+  ${SA && backupDue() ? `<div class="banner info" style="margin-top:8px"><span>ไม่ได้สำรองข้อมูลมา ${backupDue()} วัน ข้อมูลอยู่ในเบราว์เซอร์นี้เครื่องเดียว</span><button class="btn ghost" data-act="backup" style="margin-left:auto;padding:0 4px">สำรอง</button></div>` : ''}
+  ${statusPend ? `<div class="banner" style="margin-top:8px"><span>มี ${statusPend} รายการที่ใช้ NAV ประมาณการ เพราะ กบข. ยังไม่ประกาศราคาของวันนั้น ยอดจะปรับเองเมื่ออัปเดต NAV</span></div>` : ''}
+  ${waiting ? `<div class="banner info" style="margin-top:8px"><span>มี ${waiting} รายการที่บันทึกล่วงหน้า จะรวมในพอร์ตเมื่อมี NAV ถึงวันนั้น</span></div>` : ''}
+  <div class="card hero" style="margin-top:8px">
+    <div class="hero-top"><span class="eyebrow">มูลค่าพอร์ตรวม</span>
+      <div class="datestep"><button aria-label="วันก่อนหน้า" data-step="-1" ${idx <= 0 ? 'disabled' : ''}>‹</button><span>${thd(S.asOf, true)}</span><button aria-label="วันถัดไป" data-step="1" ${idx >= SERIES.length - 1 ? 'disabled' : ''}>›</button></div></div>
+    <div class="big money"><span class="cur">฿</span>${HIDE ? '•••,•••' : nf(Math.floor(v.value), 0)}<small>${HIDE ? '' : '.' + nf(v.value, 2).split('.')[1]}</small></div>
+    <div class="row" style="flex-wrap:wrap;margin-top:8px">
+      ${last ? `<span class="delta ${cls(last.gain)}">${money(last.gain, 2, true)} · ${pct(last.r)}</span><span class="note">เทียบ ${thd(last.since)}</span>` : ''}
+      ${est ? `<span class="pill warn">บางแผนใช้ NAV วันก่อนหน้า</span>` : ''}
+    </div>
+    <div class="kv3">
+      <div><div class="k"><span class="dot" style="background:var(--gold)"></span>เงินต้นสะสม</div><div class="v">${money(P)}</div></div>
+      <div><div class="k">กำไรสะสม</div><div class="v ${cls(v.value - P)}">${money(v.value - P, 2, true)}</div></div>
+      <div><div class="k">ต่อปี (IRR)</div><div class="v ${cls(st.all.irr || 0)}">${pct(st.all.irr)}</div></div>
+    </div>
+  </div>
+  <div class="sec-h"><h2>ผลตอบแทนตามช่วงเวลา</h2><button class="link" data-act="explain">วิธีคิด</button></div>
+  <div class="periods">${['week', 'month', 'ytd', 'all'].filter(k => st[k]).map(k => { const s = st[k]; return `<button class="period" data-explain="${k}"><span class="k"><span>${s.label}</span><span>›</span></span><span class="v ${cls(s.gain)}">${money(s.gain, 2, true)}</span><span class="p ${cls(s.gain)}">${pct(s.r)}</span><span class="s">${k === 'all' ? 'จากเงินต้น ' + money(s.C, 0) : 'เทียบ ' + thd(s.since)}${s.C && k !== 'all' ? ' · นำส่ง ' + money(s.C, 0) : ''}</span></button>`; }).join('')}</div>
+  <div class="sec-h"><h2>แนวโน้มพอร์ต</h2></div>
+  <div class="card">
+    <div class="seg" role="group" aria-label="ช่วงเวลา">${[['3M', '3 เดือน'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี'], ['ALL', 'ทั้งหมด']].map(([k, l]) => `<button data-range="${k}" aria-pressed="${S.range === k}">${l}</button>`).join('')}</div>
+    <div id="homeChart"></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>มูลค่าพอร์ต</span><span><i class="dash"></i>เงินต้น</span><span><i style="background:var(--accent);width:8px;height:8px;transform:rotate(45deg);border-radius:1px"></i>เปลี่ยนแผน</span></div>
+  </div>
+  <div class="sec-h"><h2>แผนที่ถืออยู่</h2><span class="note">${parts.length} แผน</span></div>
+  <div class="card">
+    ${parts.length > 1 ? `<div class="bar" style="margin-bottom:10px">${parts.map(([p, o], i) => `<span style="width:${o.value / v.value * 100}%;background:var(--s${i % 8 + 1})"></span>`).join('')}</div>` : ''}
+    ${parts.map(([p, o], i) => { const pn = (NAV[p] || []).filter(n => n.t < d2t(o.navDate)).pop(); const ch = pn ? o.nav / pn.v - 1 : null; const chB = pn ? r2(o.units * (o.nav - pn.v)) : null; return `<div class="hold">
+      <div class="n">${parts.length > 1 ? `<span class="dot" style="background:var(--s${i % 8 + 1})"></span>` : ''}แผน${esc(p)}</div><div class="r"><b>${money(o.value)}</b></div>
+      <div class="sub mono">${nf(o.units, 4)} หน่วย × ${nf(o.nav, 4)}</div><div class="r sub">${(o.value / v.value * 100).toFixed(1)}%</div>
+      <div class="sub">NAV ${thd(o.navDate)}${pn ? ` เทียบ ${thd(pn.d)}` : ''}</div><div class="r sub ${cls(ch || 0)}">${ch == null ? '' : `${money(chB, 2, true)} (${pct(ch)})`}</div></div>`; }).join('')}
+  </div>
+  <div class="sec-h"><h2>ใครออมให้คุณ</h2><span class="note">ข้อมูลจากใบแจ้งยอด</span></div>
+  <div class="card">${gpfPart}</div>
+  `;
+  drawHomeChart();
+}
+function sumGov(t) {
+  const det = (S.ledger?.detail || []).filter(d => d.kind === 'contrib' && d2t(d.date) <= t);
+  const extra = S.user.entries.filter(e => e.type === 'contrib' && e._status === 'ok' && d2t(e.date) <= t);
+  if (!det.length) return '<p class="note">นำเข้าไฟล์ "ตามประเภทเงิน" เพื่อดูสัดส่วนเงินสะสม เงินสมทบ และเงินชดเชย</p>';
+  const s = k => r2(det.reduce((a, d) => a + d[k], 0));
+  const saving = s('saving'), extraS = s('extra'), match = s('match'), comp = s('comp'), init = s('initial'); const tot = saving + extraS + match + comp + init;
+  const mine = saving + extraS, gov = match + comp + init;
+  const rows = [['เงินสะสม (ของคุณ)', saving, 'var(--s1)'], ['เงินสะสมส่วนเพิ่ม (ออมเพิ่ม)', extraS, 'var(--s7)'], ['เงินสมทบ (รัฐ)', match, 'var(--s3)'], ['เงินชดเชย (รัฐ)', comp, 'var(--s4)']].concat(init ? [['เงินประเดิม (รัฐ)', init, 'var(--s5)']] : []);
+  return `<div class="row between" style="align-items:baseline"><div><div class="eyebrow">รัฐส่งเข้าบัญชีให้แล้ว</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700" class="num">${money(gov)}</div></div><div style="text-align:right"><div class="eyebrow">คุณส่งเอง</div><div class="num" style="font-weight:600">${money(mine)}</div></div></div>
+  <div class="bar" style="margin:10px 0 8px;height:8px">${rows.map(r => `<span style="width:${r[1] / tot * 100}%;background:${r[2]}"></span>`).join('')}</div>
+  ${rows.map(r => `<div class="row between" style="font-size:13.5px;padding:3px 0"><span><span class="dot" style="background:${r[2]}"></span>${r[0]}</span><span class="num">${money(r[1])} <span class="muted">${(r[1] / tot * 100).toFixed(0)}%</span></span></div>`).join('')}
+  <p class="note" style="margin:8px 0 0">ทุก 1 บาทที่คุณส่ง รัฐเติมให้อีก ${nf(gov / mine, 2)} บาท${extra.length ? ` · ไม่รวมรายการที่บันทึกเอง ${extra.length} เดือน` : ''}</p>`;
+}
+function rangeStart(t, r) { const d = new Date(t * 864e5); if (r === '3M') return t - 92; if (r === '1Y') return t - 366; if (r === '3Y') return t - 1096; if (r === 'YTD') return Date.UTC(d.getUTCFullYear() - 1, 11, 28) / 864e5; return -1e9; }
+function drawHomeChart() {
+  const el = $('#homeChart'); if (!el) return; const t = asOfT(); const a = rangeStart(t, S.range);
+  let pts = SERIES.filter(s => s.t >= a && s.t <= t); const before = SERIES.filter(s => s.t < a).pop(); if (before && S.range !== 'ALL') pts = [before, ...pts];
+  lineChart(el, {label: 'มูลค่าพอร์ตและเงินต้น', height: 200, yfmt: kfmt,
+    series: [{name: 'มูลค่า', color: 'var(--accent)', area: true, pts: pts.map(s => [s.t, s.value])}, {name: 'เงินต้น', color: 'var(--gold)', dash: true, width: 1.6, step: true, end: false, pts: pts.map(s => [s.t, s.principal])}],
+    markers: SW.map(s => ({t: s.t})),
+    tip: (x) => { const s = SERIES.find(q => q.t === x) || pts.filter(q => q.t <= x).pop(); if (!s) return ''; const sw = SW.find(w => w.t === x); return `<b>${thd(s.date, true)}</b><br>มูลค่า ${money(s.value)}<br><span style="color:var(--gold)">เงินต้น ${money(s.principal)}</span><br>กำไร <span class="${cls(s.value - s.principal)}">${money(s.value - s.principal, 2, true)}</span>${sw ? `<br><span style="color:var(--accent)">เปลี่ยนแผน → ${sw.ins.map(i => sh(i.plan)).join(', ')}</span>` : ''}`; }});
+}
+function explainSheet(key) {
+  const t = asOfT(); const st = periodStats(t); const ks = key ? [key] : ['week', 'month', 'ytd', 'all'];
+  openSheet('วิธีคิดผลตอบแทน', `<p class="note" style="margin-top:0">ทุกช่วงใช้มูลค่าพอร์ตจากหน่วยลงทุนจริงคูณ NAV ที่ กบข. ประกาศ ณ วันที่ระบุ และหักเงินนำส่งระหว่างช่วงออก กำไรที่เห็นจึงเป็นกำไรจากการลงทุนล้วน ๆ ไม่ใช่เงินที่เติมเข้ามา</p>
+  ${ks.filter(k => st[k]).map(k => { const s = st[k]; if (k === 'all') return `<div class="card stack" style="margin-bottom:10px"><h3>${s.label}</h3><div class="formula">กำไร = มูลค่า − เงินต้นสะสม<br>= ${moneyN(s.V1)} − ${moneyN(s.C)} = <b>${moneyN(s.gain, 2, true)}</b><br>% = กำไร ÷ เงินต้น = ${pct(s.simple)}</div><p class="note" style="margin:0">IRR ${pct(s.irr)} ต่อปี คือผลตอบแทนเฉลี่ยต่อปีที่คิดตามจังหวะเงินเข้าจริงทุกเดือน ใช้เทียบกับดอกเบี้ยเงินฝากหรือกองทุนอื่นได้ตรงกว่า % รวม</p></div>`;
+    return `<div class="card stack" style="margin-bottom:10px"><h3>${s.label} <span class="note">(${thd(s.since)} → ${thd(S.asOf)})</span></h3><div class="formula">กำไร = มูลค่าปลาย − มูลค่าต้น − เงินนำส่งในช่วง<br>= ${moneyN(s.V1)} − ${moneyN(s.V0)} − ${moneyN(s.C)} = <b>${moneyN(s.gain, 2, true)}</b><br>% (Modified Dietz) = ${pct(s.r)}<br>% แบบง่าย = กำไร ÷ (มูลค่าต้น + นำส่ง) = ${pct(s.simple)}</div></div>`; }).join('')}
+  <p class="note">Modified Dietz ถ่วงน้ำหนักเงินนำส่งตามจำนวนวันที่อยู่ในพอร์ต เงินที่เพิ่งเข้าปลายช่วงจึงไม่ทำให้ % ดูต่ำเกินจริง</p>`);
+}
+
+/* ---------- history ---------- */
+function eras() {
+  if (!T.length) return [];
+  const bounds = [T[0].t, ...SW.map(s => s.t)]; const end = SERIES.length ? SERIES[SERIES.length - 1].t : T[T.length - 1].t; const out = [];
+  bounds.forEach((b, i) => {
+    const e = i + 1 < bounds.length ? bounds[i + 1] : end; const isLast = i + 1 >= bounds.length; const sw = i ? SW[i - 1] : null;
+    const startV = sw ? valueAt(b).value : 0;
+    // plans at start: holdings right after
+    const h = holdingsAt(b); const hv = valueOf(h, b); const mix = {}; const tot = hv.value || 1; for (const [p, o] of Object.entries(hv.parts)) mix[p] = o.value / tot;
+    const endV = isLast ? valueAt(e).value : valueOf(holdingsAt(e - 1), e).value;
+    const F = T.filter(x => x.kind === 'contrib' && (sw ? x.t > b : x.t >= b) && (isLast ? x.t <= e : x.t < e));
+    const C = r2(F.reduce((s, x) => s + x.amount, 0));
+    const gain = r2(endV - startV - C);
+    const span = Math.max(1, e - b); const W = F.reduce((s, x) => s + x.amount * (e - x.t) / span, 0);
+    const r = (startV + W) > 0 ? gain / (startV + W) : null;
+    const cfs = [{t: b, amt: -startV}, ...F.map(x => ({t: x.t, amt: -x.amount})), {t: e, amt: endV}].filter(c => c.amt);
+    let effect = null;
+    if (sw) { // compare switched lump: new units vs old units, valued at end of era
+      const newV = sw.ins.reduce((s, x) => { const n = navNear(x.plan, e, 0) || navAt(x.plan, e); return s + (n ? x.units * n.v : 0); }, 0);
+      let approx = false; const oldV = sw.outs.reduce((s, x) => { const ex = navAt(x.plan, e); let n = ex && Math.abs(ex.t - e) <= 3 ? ex : navNear(x.plan, e, 25); if (!n || Math.abs(n.t - e) > 3) approx = true; return s + (n ? -x.units * n.v : 0); }, 0);
+      effect = {newV: r2(newV), oldV: r2(oldV), diff: r2(newV - oldV), approx, lump: r2(sw.ins.reduce((s, x) => s + x.amount, 0))};
+    }
+    out.push({i, b, e, isLast, mix, startV, C, endV, gain, r, irr: span >= 365 ? xirr(cfs) : null, effect, sw, days: e - b});
+  });
+  return out;
+}
+function monthRows() {
+  if (!SERIES.length) return [];
+  const rows = []; const first = new Date(SERIES[0].t * 864e5), last = new Date(SERIES[SERIES.length - 1].t * 864e5);
+  let prev = null; let y = first.getUTCFullYear(), m = first.getUTCMonth();
+  while (y < last.getUTCFullYear() || (y === last.getUTCFullYear() && m <= last.getUTCMonth())) {
+    const me = Date.UTC(y, m + 1, 0) / 864e5; const pt = SERIES.filter(s => s.t <= me).pop();
+    if (pt && (!prev || pt.t > prev.t)) { const a = prev ? prev.t : pt.t - 1; const d = prev ? dietz(prev.t, pt.t) : {V0: 0, V1: pt.value, C: principalAt(pt.t), gain: r2(pt.value - principalAt(pt.t)), r: principalAt(pt.t) ? (pt.value - principalAt(pt.t)) / principalAt(pt.t) : null};
+      rows.push({y: y + 543, m, pt, ...d, principal: pt.principal}); prev = pt; void a; }
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return rows;
+}
+function yearRows() {
+  if (!SERIES.length) return [];
+  const y0 = new Date(SERIES[0].t * 864e5).getUTCFullYear(), y1 = new Date(SERIES[SERIES.length - 1].t * 864e5).getUTCFullYear(); const rows = [];
+  for (let y = y0; y <= y1; y++) {
+    const ye = Date.UTC(y, 11, 31) / 864e5; const ys = Date.UTC(y - 1, 11, 31) / 864e5;
+    const endP = SERIES.filter(s => s.t <= ye).pop(); const startP = SERIES.filter(s => s.t <= ys).pop(); if (!endP) continue;
+    const a = startP ? startP.t : endP.t - 400; const d = dietz(a, endP.t);
+    const det = (S.ledger?.detail || []).filter(x => x.kind === 'contrib' && x.date.startsWith(String(y + 543)));
+    const off = (S.ledger?.summary || []).find(s => s.year === y + 543);
+    let check = null; if (off?.total) { const v = valueAt(d2t(off.asOf)).value; const ref = Object.keys(holdingsAt(d2t(off.asOf))).some(p => navAt(p, d2t(off.asOf))?.src === 'summary'); check = {asOf: off.asOf, official: off.total[2], ours: v, diff: r2(v - off.total[2]), ref}; }
+    rows.push({y: y + 543, endP, startV: d.V0, C: d.C, endV: d.V1, gain: d.gain, r: d.r, det, check, off});
+  }
+  return rows;
+}
+function renderHistory() {
+  const el = $('#v-history'); if (emptyPortfolio(el)) return;
+  const segs = [['eras', 'แผนในอดีต'], ['month', 'รายเดือน'], ['year', 'รายปี'], ['tx', 'รายการ']];
+  let body = '';
+  if (S.histSeg === 'eras') body = historyEras(); else if (S.histSeg === 'month') body = historyMonths(); else if (S.histSeg === 'year') body = historyYears(); else body = historyTx();
+  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ประวัติการลงทุน</h2></div><div class="seg" role="group" aria-label="มุมมองประวัติ">${segs.map(([k, l]) => `<button data-hseg="${k}" aria-pressed="${S.histSeg === k}">${l}</button>`).join('')}</div><div style="margin-top:12px" class="stack">${body}</div>`;
+  if (S.histSeg === 'month') { const rows = monthRows(); const yr = S.txYear || (rows.length ? rows[rows.length - 1].y : null); const rr = rows.filter(r => S.txYear === 'all' || r.y === yr); barChart($('#mChart'), rr.map(r => ({label: S.txYear === 'all' ? String(r.y).slice(2) : MTH[r.m], v: r.gain, title: `${MTH[r.m]} ${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายเดือน'}); }
+  if (S.histSeg === 'year') { const rows = yearRows(); barChart($('#yChart'), rows.map(r => ({label: String(r.y), v: r.gain, title: `${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายปี'}); }
+}
+function eraColor(i) { return `var(--s${i % 8 + 1})`; }
+function historyEras() {
+  const E = eras(); if (!E.length) return '';
+  const tot = E.reduce((s, e) => s + Math.max(e.days, 1), 0);
+  const best = E.filter(e => e.irr != null).sort((a, b) => b.irr - a.irr)[0];
+  const decisions = E.filter(e => e.effect); const net = r2(decisions.reduce((s, e) => s + e.effect.diff, 0));
+  return `<div class="card"><div class="eyebrow">ไทม์ไลน์ ${E.length} ช่วง · เปลี่ยนแผน ${SW.length} ครั้ง</div>
+    <div class="tl">${E.map(e => `<button style="flex:${Math.max(e.days, 1) / tot * 100};background:${eraColor(e.i)}" data-era="${e.i}" title="${esc(Object.keys(e.mix).map(sh).join(' + '))}">${e.days / tot > .12 ? esc(sh(Object.keys(e.mix).sort((a, b) => e.mix[b] - e.mix[a])[0])) : ''}</button>`).join('')}</div>
+    <div class="row between note"><span>${thd(t2d(E[0].b))}</span><span>${thd(t2d(E[E.length - 1].e))}</span></div>
+    ${decisions.length ? `<div class="verdict ${net >= 0 ? 'good' : 'bad'}" style="margin-top:12px">รวมผลจากการตัดสินใจย้ายแผนทั้ง ${decisions.length} ครั้ง: <b class="${cls(net)}">${money(net, 2, true)}</b> เทียบกับถ้าถือแผนเดิมต่อไปในแต่ละช่วง${best ? `<br>ช่วงที่ทำผลตอบแทนต่อปีดีที่สุด: ช่วงที่ ${best.i + 1} (${esc(Object.keys(best.mix).map(sh).join(' + '))}) ${pct(best.irr)} ต่อปี` : ''}</div>` : ''}
+  </div>
+  ${E.slice().reverse().map(e => `<div class="card era" id="era-${e.i}" style="--c:${eraColor(e.i)}">
+    <div class="head"><div style="min-width:0"><div class="eyebrow">ช่วงที่ ${e.i + 1}${e.isLast ? ' · ปัจจุบัน' : ''}</div><h3>${Object.entries(e.mix).sort((a, b) => b[1] - a[1]).map(([p, w]) => `แผน${esc(p)}${Object.keys(e.mix).length > 1 ? ` <span class="muted">${Math.round(w * 100)}%</span>` : ''}`).join('<br>')}</h3></div>
+      <div style="text-align:right;white-space:nowrap"><div class="${cls(e.gain)}" style="font-weight:700;font-family:var(--f-display);font-size:18px">${money(e.gain, 2, true)}</div><div class="${cls(e.gain)} num" style="font-size:13px;font-weight:600">${pct(e.r)}</div></div></div>
+    <div class="note">${thd(t2d(e.b), true)} → ${thd(t2d(e.e), true)} · ${Math.round(e.days / 30.4)} เดือน</div>
+    <div class="kvs">
+      <div><span>เริ่มช่วง</span><span>${money(e.startV)}</span></div>
+      <div><span>นำส่งในช่วง</span><span>${money(e.C)}</span></div>
+      <div><span>${e.isLast ? 'ตอนนี้' : 'จบช่วง'}</span><span>${money(e.endV)}</span></div>
+      <div><span>ต่อปี (IRR)</span><span class="${cls(e.irr || 0)}">${e.irr == null ? '—' : pct(e.irr)}</span></div>
+    </div>
+    ${e.effect ? `<div class="verdict ${e.effect.diff >= 0 ? 'good' : 'bad'}">ผลของการย้ายแผนเมื่อ ${thd(t2d(e.b))}: เงินก้อน ${money(e.effect.lump, 0)} ที่ย้ายมา ${e.isLast ? 'ตอนนี้' : 'ตอนจบช่วง'}มีค่า ${money(e.effect.newV)} ถ้าอยู่แผนเดิม (${esc(e.sw.outs.map(o => sh(o.plan)).join(' + '))}) จะมีค่า ${money(e.effect.oldV)}<br><b class="${cls(e.effect.diff)}">${e.effect.diff >= 0 ? 'ย้ายแล้วได้มากกว่า' : 'ย้ายแล้วได้น้อยกว่า'} ${money(Math.abs(e.effect.diff))}</b>${e.effect.approx ? ' <span class="note">(แผนเดิมใช้ NAV ใกล้วันที่สุดที่มี)</span>' : ''}</div>` : ''}
+  </div>`).join('')}
+  <p class="note">กำไรแต่ละช่วง = มูลค่าพอร์ตตอนจบช่วง − มูลค่าตอนเริ่มช่วง − เงินนำส่งในช่วง · % คิดแบบ Modified Dietz · ผลตอบแทนต่อปี (IRR) แสดงเฉพาะช่วงที่ยาวตั้งแต่ 1 ปี</p>`;
+}
+function historyMonths() {
+  const rows = monthRows(); const years = [...new Set(rows.map(r => r.y))]; const yr = S.txYear && S.txYear !== 'all' && years.includes(S.txYear) ? S.txYear : (S.txYear === 'all' ? 'all' : years[years.length - 1]);
+  const rr = rows.filter(r => yr === 'all' || r.y === yr); const sum = rr.reduce((s, r) => s + r.gain, 0), sumC = rr.reduce((s, r) => s + r.C, 0);
+  const pos = rr.filter(r => r.gain > 0).length;
+  return `<div class="chips">${[...years.slice().reverse(), 'all'].map(y => `<button class="chip" data-year="${y}" aria-pressed="${yr === y}">${y === 'all' ? 'ทุกปี' : y}</button>`).join('')}</div>
+  <div class="card"><div class="row between"><div><div class="eyebrow">กำไร/ขาดทุนรวม ${yr === 'all' ? 'ทุกปี' : 'ปี ' + yr}</div><div class="${cls(sum)}" style="font-family:var(--f-display);font-weight:700;font-size:22px">${money(sum, 2, true)}</div></div><div style="text-align:right" class="note">เดือนที่บวก ${pos}/${rr.length}<br>นำส่ง ${money(sumC, 0)}</div></div><div id="mChart"></div></div>
+  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>เดือน</th><th>มูลค่า</th><th>นำส่ง</th><th>กำไร/ขาดทุน</th></tr></thead><tbody>
+  ${rr.slice().reverse().map(r => `<tr><td class="l">${MTH[r.m]} ${String(r.y).slice(2)}<div class="note">ณ ${thd(r.pt.date)}</div></td><td>${moneyN(r.V1)}</td><td>${moneyN(r.C, 0)}</td><td class="${cls(r.gain)}">${moneyN(r.gain, 2, true)}<div style="font-size:12px">${pct(r.r)}</div></td></tr>`).join('')}
+  </tbody></table></div><p class="note" style="margin-bottom:0">"มูลค่า ณ" คือวันที่มี NAV ล่าสุดของเดือนนั้น ปีที่ กบข. เปิดเผย NAV รายไตรมาส จะใช้ NAV จากวันเงินนำส่งในใบแจ้งยอดแทน</p></div>`;
+}
+function historyYears() {
+  const rows = yearRows();
+  return `<div class="card"><div class="eyebrow">กำไร/ขาดทุนรายปี (หักเงินนำส่ง)</div><div id="yChart"></div></div>
+  ${rows.slice().reverse().map(r => { const s = k => r2(r.det.reduce((a, d) => a + d[k], 0)); return `<div class="card">
+    <div class="row between"><h3>ปี ${r.y}${r.endP.date !== `${r.y}-12-31` && r.y === +S.asOf?.slice(0, 4) ? ' <span class="pill acc">ถึง ' + thd(r.endP.date) + '</span>' : ''}</h3><div class="${cls(r.gain)}" style="font-weight:700;font-family:var(--f-display)">${money(r.gain, 2, true)} <span style="font-size:13px">${pct(r.r)}</span></div></div>
+    <div class="kvs"><div><span>ยกมา</span><span>${money(r.startV)}</span></div><div><span>นำส่ง</span><span>${money(r.C)}</span></div><div><span>ปลายปี</span><span>${money(r.endV)}</span></div><div><span>ณ วันที่</span><span>${thd(r.endP.date)}</span></div>
+    ${r.det.length ? `<div><span>ส่วนของคุณ</span><span>${money(s('saving') + s('extra'))}</span></div><div><span>ส่วนของรัฐ</span><span>${money(s('match') + s('comp') + s('initial'))}</span></div>` : ''}</div>
+    ${r.check ? `<div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">${r.check.ref ? `<span class="pill acc">ใช้ยอดใบแจ้งยอดเป็นจุดอ้างอิง NAV</span>` : Math.abs(r.check.diff) < 0.05 ? `<span class="pill ok">✓ ตรงกับใบแจ้งยอด กบข.</span>` : `<span class="pill warn">ต่างจากใบแจ้งยอด ${moneyN(r.check.diff, 2, true)}</span>`}<span class="note">${thd(r.check.asOf)} ยอด ${money(r.check.official)}</span></div>` : ''}
+  </div>`; }).join('')}`;
+}
+function historyTx() {
+  const years = [...new Set(T.map(x => x.date.slice(0, 4)))].reverse(); const yr = S.txYear && years.includes(String(S.txYear)) ? String(S.txYear) : years[0];
+  const days = [...new Set(T.filter(x => x.date.startsWith(yr)).map(x => x.t))].reverse();
+  const lbl = {contrib: 'เงินนำส่ง', switch_out: 'ย้ายออก', switch_in: 'ย้ายเข้า', adjust: 'ปรับหน่วย'};
+  return `<div class="chips">${years.map(y => `<button class="chip" data-year="${y}" aria-pressed="${yr === y}">${y}</button>`).join('')}</div>
+  <div class="card">${days.map(t => { const g = T.filter(x => x.t === t); const k = g.some(x => x.kind.startsWith('switch')) ? 'sw' : g[0].kind === 'adjust' ? 'adj' : 'in'; const amt = g.filter(x => x.kind === 'contrib').reduce((s, x) => s + x.amount, 0);
+    return `<div class="li"><div class="ic ${k === 'sw' ? 'sw' : 'in'}">${k === 'sw' ? '⇄' : k === 'adj' ? '±' : '+'}</div><div class="body"><div class="t">${k === 'sw' ? 'เปลี่ยนแผนการลงทุน' : k === 'adj' ? 'ปรับหน่วยให้ตรง My GPF' : 'เงินนำส่ง'} ${g.some(x => x.src === 'entry') ? '<span class="pill acc">บันทึกเอง</span>' : ''} ${g.some(x => x.est) ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(g[0].date, true)}</div>
+      ${g.map(x => `<div class="s mono" style="font-size:12px">${lbl[x.kind]} ${esc(sh(x.plan))} · ${x.nav ? nf(x.nav, 4) : '—'} × ${nf(x.units, 4)}${x.amount ? ' = ' + moneyN(x.amount) : ''}</div>`).join('')}</div>
+      <div class="amt">${amt ? `<b class="up">+${moneyN(amt)}</b>` : `<span class="muted">${moneyN(g.filter(x => x.kind === 'switch_in').reduce((s, x) => s + x.amount, 0))}</span>`}</div></div>`; }).join('')}</div>`;
+}
+
+/* ---------- funds ---------- */
+function fundNavDates() { return NAVDATES; }
+function planReturn(p, a, b) { const e = navAt(p, b); let s = navAt(p, a); if (!s && NAV[p] && NAV[p][0].t - a <= 100) s = NAV[p][0]; if (!e || !s || s.t >= e.t) return null; return {r: e.v / s.v - 1, s, e, late: s.t - a > 20}; }
+function planRisk(p) { const b = d2t(NAVDATES[NAVDATES.length - 1]); const q = (NAV[p] || []).filter(n => (n.src === 'official' || n.src === 'gpf' || n.src === 'auto' || n.src === 'excel') && n.t >= b - 1830 && ['03', '06', '09', '12'].includes(n.d.slice(5, 7)) && +n.d.slice(8) >= 27);
+  if (q.length < 4) return null; const r = []; for (let i = 1; i < q.length; i++) r.push(q[i].v / q[i - 1].v - 1); const m = r.reduce((a, x) => a + x, 0) / r.length; const sd = Math.sqrt(r.reduce((a, x) => a + (x - m) ** 2, 0) / (r.length - 1)) * 2; return {sd, worst: Math.min(...r), n: r.length}; }
+function fundPeriodRange(k) {
+  const lastD = NAVDATES[NAVDATES.length - 1]; const b = d2t(lastD); const dt = new Date(b * 864e5);
+  const prev = NAVDATES.filter(d => d < lastD).pop();
+  const m = {LAST: prev ? d2t(prev) : b - 7, '1M': b - 30, '3M': b - 91, YTD: Date.UTC(dt.getUTCFullYear() - 1, 11, 31) / 864e5, '1Y': b - 365, '3Y': b - 1095, '5Y': b - 1826, ALL: -1e9}[k];
+  return {a: m, b};
+}
+function fundRanks(k) {
+  const {a, b} = fundPeriodRange(k); const out = [];
+  for (const p of PLANS) { if (!NAV[p]) continue;
+    if (k === 'ALL') { const s = NAV[p].find(n => n.src === 'official' || n.src === 'gpf') || NAV[p][0]; const e = navAt(p, b); if (!s || !e || e.t <= s.t) continue; const yrs = (e.t - s.t) / 365.25; out.push({p, r: Math.pow(e.v / s.v, 1 / yrs) - 1, tot: e.v / s.v - 1, s, e, ann: true, yrs}); continue; }
+    const r = planReturn(p, a, b); if (r) { const ann = ['3Y', '5Y'].includes(k); const yrs = (r.e.t - r.s.t) / 365.25; out.push({p, r: ann ? Math.pow(1 + r.r, 1 / yrs) - 1 : r.r, tot: r.r, s: r.s, e: r.e, ann, late: r.late}); } }
+  return out.sort((x, y) => y.r - x.r);
+}
+function heldPlans() { const h = holdingsAt(SERIES.length ? SERIES[SERIES.length - 1].t : 1e9); return Object.keys(h); }
+function renderFunds() {
+  const el = $('#v-funds'); const held = heldPlans();
+  if (!S.fundSel) { S.fundSel = [...new Set([...held, 'หุ้นต่างประเทศ', 'ทองคำ', 'หุ้นไทย'])].slice(0, 4); }
+  const ranks = fundRanks(S.fundPeriod); const maxAbs = Math.max(...ranks.map(r => Math.abs(r.r)), 0.0001);
+  const pers = [['LAST', 'ล่าสุด'], ['1M', '1 เดือน'], ['3M', '3 เดือน'], ['YTD', 'ต้นปี'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['ALL', 'ตั้งแต่ตั้ง/ปี']];
+  const ex = ranks[0];
+  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>จัดอันดับ ${PLANS.length} แผน</h2><span class="note">NAV ${thd(NAVDATES[NAVDATES.length - 1])}</span></div>
+  <div class="seg" role="group" aria-label="ช่วงผลตอบแทน">${pers.map(([k, l]) => `<button data-fper="${k}" aria-pressed="${S.fundPeriod === k}">${l}</button>`).join('')}</div>
+  <div class="card" style="margin-top:10px">${ex ? `<p class="note" style="margin:0 0 6px">${['3Y', '5Y', 'ALL'].includes(S.fundPeriod) ? 'ผลตอบแทนเฉลี่ยต่อปี · ' : ''}เทียบ NAV ${thd(ex.s.d)} → ${thd(ex.e.d)}</p>` : ''}
+    ${ranks.map((r, i) => `<div class="rank ${i === 0 ? 'top' : ''} ${held.includes(r.p) ? 'mine' : ''}"><span class="no">${i + 1}</span><span class="nm">แผน${esc(r.p)} ${held.includes(r.p) ? '<span class="pill acc">ถืออยู่</span>' : ''}${r.late ? `<span class="note"> · เริ่ม ${thd(r.s.d)}</span>` : ''}${S.fundPeriod === 'ALL' ? `<span class="note"> · ${r.yrs.toFixed(0)} ปี</span>` : ''}</span><span class="pct ${cls(r.r)}">${pct(r.r)}</span><span class="meter"><span style="left:${r.r >= 0 ? 50 : 50 - Math.abs(r.r) / maxAbs * 50}%;width:${Math.abs(r.r) / maxAbs * 50}%;background:${r.r >= 0 ? 'var(--up)' : 'var(--down)'}"></span></span></div>`).join('')}
+    ${!ranks.length ? '<p class="note">ยังไม่มี NAV พอสำหรับช่วงนี้</p>' : ''}
+  </div>
+  <div class="sec-h"><h2>เทียบการเติบโต</h2><span class="note">เลือกได้สูงสุด 6 แผน</span></div>
+  <div class="card stack">
+    <div class="seg" role="group" aria-label="ช่วงกราฟ">${[['1Y', '1 ปี'], ['3Y', '3 ปี'], ['5Y', '5 ปี'], ['ALL', 'ทั้งหมด']].map(([k, l]) => `<button data-frange="${k}" aria-pressed="${S.fundRange === k}">${l}</button>`).join('')}</div>
+    <div class="chips">${PLANS.filter(p => NAV[p]).map(p => { const i = S.fundSel.indexOf(p); return `<button class="chip" data-fsel="${esc(p)}" aria-pressed="${i >= 0}">${i >= 0 ? `<span class="dot" style="margin:0;background:${slotColor(p)}"></span>` : ''}${esc(sh(p))}</button>`; }).join('')}</div>
+    <div id="fChart"></div><div class="legend" id="fLegend"></div>
+    <p class="note" style="margin:0">เริ่มทุกแผนที่ 100 ณ วันแรกของช่วง ใช้ NAV ทางการ (รายปีก่อน 2564 รายไตรมาสถึงปี 2568 แล้วรายเดือน) ร่วมกับ NAV จากใบแจ้งยอดของคุณ</p>
+  </div>
+  <div class="sec-h"><h2>ตาราง NAV และผลตอบแทน</h2><span class="note">เลื่อนตารางไปทางขวา →</span></div>
+  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>แผน</th><th>NAV</th><th>1 เดือน</th><th>ต้นปี</th><th>1 ปี</th><th>3 ปี/ปี</th><th>5 ปี/ปี</th><th>ผันผวน/ปี</th><th>ไตรมาสแย่สุด</th></tr></thead><tbody>
+  ${PLANS.filter(p => NAV[p]).map(p => { const last = navAt(p, 1e9); const g = k => fundRanks(k).find(r => r.p === p); return `<tr><td class="l">${esc(sh(p))}${held.includes(p) ? ' <span class="pill acc">ถือ</span>' : ''}</td><td class="mono">${nf(last.v, 4)}</td>${['1M', 'YTD', '1Y', '3Y', '5Y'].map(k => { const x = g(k); return `<td class="${x ? cls(x.r) : ''}">${x ? pct(x.r, 1) + (x.late ? '*' : '') : '—'}</td>`; }).join('')}${(() => { const k = planRisk(p); return k ? `<td>${nf(k.sd * 100, 1)}%</td><td class="down">${pct(k.worst, 1)}</td>` : '<td>—</td><td>—</td>'; })()}</tr>`; }).join('')}
+  </tbody></table></div>
+  <p class="note" style="margin-bottom:0">"3 ปี/ปี" และ "5 ปี/ปี" คือผลตอบแทนเฉลี่ยต่อปีแบบทบต้น ไม่ใช่ผลรวมทั้งช่วง · * แผนเริ่มมีข้อมูลหลังต้นช่วง จึงนับจากวันแรกที่มี · ผันผวน/ปี และไตรมาสแย่สุด คิดจาก NAV สิ้นไตรมาสย้อนหลัง 5 ปี ยิ่งสูงยิ่งขึ้นลงแรง</p></div>`;
+  drawFundChart();
+}
+const SLOT = {}; function slotColor(p) { if (!(p in SLOT)) { const used = new Set(Object.entries(SLOT).filter(([k]) => S.fundSel.includes(k)).map(([, v]) => v)); let i = 1; while (used.has(i)) i++; SLOT[p] = i; } return `var(--s${SLOT[p]})`; }
+function drawFundChart() {
+  const el = $('#fChart'); if (!el) return; const b = d2t(NAVDATES[NAVDATES.length - 1]); const a = {'1Y': b - 366, '3Y': b - 1096, '5Y': b - 1830, ALL: -1e9}[S.fundRange];
+  for (const k of Object.keys(SLOT)) if (!S.fundSel.includes(k)) delete SLOT[k];
+  const series = S.fundSel.map(p => { const arr = (NAV[p] || []).filter(n => n.t >= a && n.t <= b); const base0 = navAt(p, a); const pts0 = base0 && base0.t < (arr[0]?.t ?? 1e9) ? [base0, ...arr] : arr; if (!pts0.length) return null; const base = pts0[0].v; return {name: p, color: slotColor(p), pts: pts0.map(n => [Math.max(n.t, a > -1e8 ? a : n.t), n.v / base * 100])}; }).filter(Boolean);
+  lineChart(el, {label: 'เปรียบเทียบการเติบโตของแผน', height: 220, padR: 40, yfmt: v => Math.round(v), baseline: 100, series,
+    tip: (x, vals) => `<b>${thd(t2d(x), true)}</b>${vals.sort((p, q) => q.v - p.v).map(o => `<br><span class="dot" style="background:${o.s.color}"></span>${esc(sh(o.s.name))} ${nf(o.v - 100, 1)}%`).join('')}`});
+  $('#fLegend').innerHTML = series.map(s => { const l = s.pts[s.pts.length - 1][1]; return `<span><i style="background:${s.color}"></i>${esc(sh(s.name))} <b class="${cls(l - 100)}">${pct(l / 100 - 1, 1)}</b></span>`; }).join('');
+}
+
+/* ---------- news ---------- */
+function renderNews() {
+  const el = $('#v-news'); const held = heldPlans(); const lastD = NAVDATES[NAVDATES.length - 1];
+  const items = [...S.news].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const mine = items.filter(n => (n.plans || []).some(p => held.includes(p)));
+  const list = S.newsFilter === 'mine' && mine.length ? mine : items;
+  const r1m = fundRanks('1M'), rytd = fundRanks('YTD');
+  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ภาพรวมสินทรัพย์</h2><span class="note">จาก NAV ${thd(lastD)}</span></div>
+  <div class="card"><div class="asset" style="font-size:12px;color:var(--muted);padding-top:0"><span>กลุ่ม / แผนตัวแทน</span><span>1 เดือน</span><span>ต้นปี</span></div>
+  ${ASSETS.map(a => { const p = a.plans.find(x => NAV[x]) ; const x1 = r1m.find(r => r.p === p), xy = rytd.find(r => r.p === p); const h = a.plans.some(q => held.includes(q)); return `<div class="asset"><span><b style="font-weight:600">${a.key}</b>${h ? ' <span class="pill acc">ถืออยู่</span>' : ''}<br><span class="note">แผน${esc(sh(p))}</span></span><span class="num ${x1 ? cls(x1.r) : ''}" style="text-align:right;font-weight:600">${x1 ? pct(x1.r, 1) : '—'}</span><span class="num ${xy ? cls(xy.r) : ''}" style="text-align:right;font-weight:600">${xy ? pct(xy.r, 1) : '—'}</span></div>`; }).join('')}</div>
+  <div class="sec-h"><h2>ข่าวที่เกี่ยวข้อง</h2>${mine.length ? `<div class="seg" style="flex:none"><button data-nf="mine" aria-pressed="${S.newsFilter === 'mine'}">แผนของฉัน</button><button data-nf="all" aria-pressed="${S.newsFilter !== 'mine'}">ทั้งหมด</button></div>` : ''}</div>
+  <div class="card">${list.length ? list.map(n => `<a class="news" href="${esc(n.url)}" target="_blank" rel="noopener"><div class="row between" style="align-items:flex-start"><span class="t">${esc(n.title)}</span>${(n.plans || []).some(p => held.includes(p)) ? '<span class="pill acc">แผนของคุณ</span>' : ''}</div><p>${esc(n.summary)}</p><div class="row" style="flex-wrap:wrap;gap:6px"><span class="note">${thd(n.date)} · ${esc(n.source || '')}</span>${(n.assets || []).map(a => `<span class="pill">${esc(a)}</span>`).join('')}</div></a>`).join('') : `<div class="empty"><h3>ยังไม่มีข่าว</h3><p class="note">ข่าวตลาดที่เกี่ยวกับแผนของคุณจะแสดงที่นี่เมื่อมีการอัปเดต ระหว่างนี้ติดตามได้จากแหล่งเหล่านี้</p><div class="chips" style="justify-content:center"><a class="chip" href="https://www.gpf.or.th/thai2019/7News/main.php?page=7&menu=news&lang=th" target="_blank" rel="noopener">ข่าว กบข.</a><a class="chip" href="https://www.set.or.th/th/market/index/set/overview" target="_blank" rel="noopener">ดัชนี SET</a><a class="chip" href="https://www.goldtraders.or.th/" target="_blank" rel="noopener">ราคาทองคำ</a><a class="chip" href="https://www.bot.or.th/th/statistics/interest-rate.html" target="_blank" rel="noopener">ดอกเบี้ย ธปท.</a></div></div>`}</div>
+  <p class="note">สรุปข่าวเพื่อประกอบการติดตามเท่านั้น ไม่ใช่คำแนะนำการลงทุน แตะหัวข้อเพื่ออ่านต้นฉบับ</p>`;
+}
+
+/* ---------- record ---------- */
+function renderRecord() {
+  const el = $('#v-record'); const lastD = NAVDATES[NAVDATES.length - 1]; const ld = S.navDb[lastD] || (S.navFile?.[lastD] ? {...S.navFile[lastD], source: 'auto'} : null);
+  const ents = [...S.user.entries].sort((a, b) => b.date.localeCompare(a.date));
+  const stt = {ok: '', dup: '<span class="pill">ซ้ำกับ PDF · ไม่นับซ้ำ</span>', nonav: '<span class="pill bad">ไม่มี NAV</span>', nomix: '<span class="pill bad">ไม่รู้สัดส่วนแผน</span>'};
+  const lastCheck = [...S.user.checks].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const daysOld = lastD ? Math.round((d2t(todayD()) - d2t(lastD))) : 99;
+  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ข้อมูล NAV</h2><span class="pill ${daysOld <= 5 ? 'ok' : 'warn'}">${daysOld <= 5 ? 'เป็นปัจจุบัน' : `ผ่านมา ${daysOld} วัน`}</span></div>
+  <div class="card stack"><div class="row between"><div><div class="eyebrow">NAV ล่าสุดในแอป</div><b style="font-family:var(--f-display);font-size:18px">${thd(lastD, true)}</b><div class="note">${ld ? `${{gpf: 'ดึงจากเว็บ กบข.', auto: 'อัปเดตอัตโนมัติ', manual: 'วางข้อความ', excel: 'นำเข้า Excel'}[ld.source] || ld.source}${ld.savedAt ? ' · บันทึก ' + new Date(ld.savedAt).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short'}) : ''}` : 'ข้อมูลตั้งต้นจากไฟล์ Excel ของ กบข.'}</div></div></div>
+    <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button></div>
+  <div class="sec-h"><h2>บันทึกรายการ</h2></div>
+  <div class="stack">
+    ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
+    ${toolBtn('switch', 'แจ้งเปลี่ยนแผน', 'ย้ายทั้งพอร์ตไปแผนใหม่หรือผสมเอง', '<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}
+    ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
+    ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.files?.length ? `นำเข้าแล้ว ${S.ledger.files.length} ไฟล์ · ${S.ledger.txns.length} รายการ` : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
+  </div>
+  <div class="sec-h"><h2>รายการที่บันทึกเอง</h2><span class="note">${ents.length} รายการ</span></div>
+  <div class="card">${ents.length ? ents.map(e => `<div class="li"><div class="ic ${e.type === 'switch' ? 'sw' : 'in'}">${e.type === 'switch' ? '⇄' : e.type === 'units' ? '±' : '+'}</div><div class="body"><div class="t">${e.type === 'contrib' ? 'เงินนำส่ง ' + moneyN(e.amount) : e.type === 'switch' ? 'เปลี่ยนแผน → ' + esc(Object.keys(e.to || {}).map(sh).join(' + ')) : 'ปรับหน่วยให้ตรง My GPF'} ${stt[e._status] || ''} ${e._est && e._status === 'ok' ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(e.date, true)}${e._rows?.length ? ' · ' + e._rows.map(r => `${sh(r.plan)} ${r.units > 0 ? '+' : ''}${nf(r.units, 4)} หน่วย`).join(', ') : ''}</div></div><button class="btn ghost" data-del="${e.id}" aria-label="ลบรายการ">ลบ</button></div>`).join('') : '<p class="note" style="margin:0">เดือนที่ยังไม่มีใน PDF ให้บันทึกที่นี่ เมื่อนำเข้า PDF ปีใหม่ แอปจะใช้ตัวเลขจาก PDF แทนอัตโนมัติ</p>'}</div>
+  <div class="sec-h"><h2>ประวัติ NAV ที่บันทึก</h2></div>
+  <div class="card">${Object.keys(S.navDb).length ? Object.entries(S.navDb).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30).map(([d, doc]) => `<div class="li"><div class="body"><div class="t">${thd(d, true)} <span class="pill">${esc({gpf: 'เว็บ กบข.', auto: 'อัตโนมัติ', manual: 'วางข้อความ', excel: 'Excel'}[doc.source] || doc.source)}</span>${doc.flags?.length ? ' <span class="pill warn">ตรวจแล้วมีข้อสังเกต</span>' : ''}</div><div class="s">${Object.keys(doc.values || {}).length} แผน${doc.values?.[heldPlans()[0]] ? ` · ${esc(sh(heldPlans()[0]))} ${nf(doc.values[heldPlans()[0]], 4)}` : ''}</div></div>${S.isOwner ? `<button class="btn ghost" data-delnav="${d}">ลบ</button>` : ''}</div>`).join('') : '<p class="note" style="margin:0">ยังไม่มี NAV ที่บันทึกเพิ่ม ข้อมูลตั้งต้นมาจากไฟล์ Excel ของ กบข. (ถึง 9 ต.ค. 2569)</p>'}</div>`;
+}
+const toolBtn = (act, t, s, path) => `<button class="tool" data-act="${act}"><span class="ti"><svg viewBox="0 0 24 24">${path}</svg></span><span style="min-width:0"><b>${t}</b><span>${esc(s)}</span></span><span class="chev">›</span></button>`;
+
+/* ---------- sheets ---------- */
+function openSheet(title, html, onMount) {
+  $('#sheetRoot').innerHTML = `<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div><div class="sh-h"><h2>${esc(title)}</h2><button class="btn ghost" data-close>ปิด</button></div><div id="sheetBody">${html}</div></div></div>`;
+  $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim' || e.target.closest('[data-close]')) closeSheet(); });
+  onMount && onMount($('#sheetBody'));
+}
+const closeSheet = () => $('#sheetRoot').innerHTML = '';
+function planOptions(sel) { return PLANS.filter(p => !['เชิงรุก 20', 'เชิงรุก 75'].includes(p)).map(p => `<option value="${esc(p)}" ${p === sel ? 'selected' : ''}>แผน${esc(p)}</option>`).join(''); }
+function sheetContrib() {
+  const lastC = T.filter(x => x.kind === 'contrib').pop(); const lastAmt = lastC ? r2(T.filter(x => x.t === lastC.t && x.kind === 'contrib').reduce((s, x) => s + x.amount, 0)) : '';
+  const nextDate = todayD();
+  openSheet('บันทึกเงินนำส่ง', `<div class="stack">
+    <div class="field"><label for="cDate">วันที่ กบข. บันทึกเงินนำส่ง</label><input class="inp" id="cDate" type="date" value="${beToIso(nextDate)}"><span class="hint" id="cDateTh"></span></div>
+    <div class="field"><label for="cAmt">จำนวนเงินรวม (บาท)</label><input class="inp num" id="cAmt" type="number" inputmode="decimal" step="0.01" value="${lastAmt}"><span class="hint">รวมเงินสะสม สมทบ ชดเชย และส่วนเพิ่ม เดือนก่อน ${moneyN(lastAmt || 0)}</span></div>
+    <div id="cPrev" class="card"></div>
+    <details><summary class="note" style="cursor:pointer">กรอกจำนวนหน่วยจาก My GPF เอง (ไม่บังคับ)</summary><div id="cUnits" class="stack" style="margin-top:8px"></div></details>
+    <button class="btn block" id="cSave">บันทึก</button></div>`, b => {
+    const upd = () => { $('#cDateTh').textContent = `${thd(isoToBe($('#cDate').value), true)} · ดูได้จากประวัติในแอป My GPF ปกติเป็นวันเงินเดือนออก`; const t = d2t(isoToBe($('#cDate').value)); const amt = +$('#cAmt').value || 0; const mix = mixAt(t) || {}; let h = ''; let est = false; let uh = '';
+      for (const [p, w] of Object.entries(mix)) { const ex = navExact(p, t); const n = ex || navAt(p, t); if (!ex) est = true; const a = r2(amt * w); h += `<div class="row between" style="font-size:13.5px;padding:3px 0"><span>แผน${esc(sh(p))} ${Object.keys(mix).length > 1 ? `<span class="muted">${Math.round(w * 100)}%</span>` : ''}</span><span class="mono">${nf(a)} ÷ ${n ? nf(n.v, 4) : '—'} = <b>${n ? nf(a / n.v, 4) : '—'}</b> หน่วย</span></div>`; uh += `<div class="field"><label for="u_${esc(p)}">หน่วยแผน${esc(sh(p))}</label><input class="inp mono" data-unit="${esc(p)}" id="u_${esc(p)}" type="number" step="0.0001" inputmode="decimal" placeholder="${n ? nf(a / n.v, 4) : ''}"></div>`; }
+      $('#cPrev').innerHTML = `<div class="eyebrow" style="margin-bottom:4px">แบ่งตามสัดส่วนแผนปัจจุบัน</div>${h || '<p class="note">ยังไม่รู้สัดส่วนแผน นำเข้า PDF ก่อน</p>'}${est ? `<p class="note" style="margin:6px 0 0"><span class="pill warn">NAV ประมาณ</span> ยังไม่มี NAV ของวันนี้ ใช้ราคาล่าสุดไปก่อน เมื่ออัปเดต NAV แล้วหน่วยจะคำนวณใหม่ให้เอง</p>` : ''}`;
+      if (!$('#cUnits').dataset.k || $('#cUnits').dataset.k !== Object.keys(mix).join()) { $('#cUnits').innerHTML = uh; $('#cUnits').dataset.k = Object.keys(mix).join(); } };
+    $('#cDate').addEventListener('input', upd); $('#cAmt').addEventListener('input', upd); upd();
+    $('#cSave').addEventListener('click', async () => { const amt = +$('#cAmt').value; if (!(amt > 0)) return toast('กรอกจำนวนเงินก่อน'); const units = {}; for (const i of b.querySelectorAll('[data-unit]')) if (+i.value > 0) units[i.dataset.unit] = +i.value;
+      S.user.entries.push({id: uid(), type: 'contrib', date: isoToBe($('#cDate').value), amount: r2(amt), units: Object.keys(units).length ? units : null, createdAt: Date.now()}); await saveUser(); closeSheet(); toast('บันทึกเงินนำส่งแล้ว'); });
+  });
+}
+function sheetSwitch() {
+  openSheet('แจ้งเปลี่ยนแผน', `<div class="stack"><p class="note" style="margin:0">กบข. ย้ายทั้งพอร์ตในครั้งเดียว ทั้งเงินเดิมและเงินนำส่งหลังจากนี้จะเข้าแผนใหม่ ใช้ NAV ของวันที่ทำรายการ (ประกาศประมาณ 2 วันทำการ)</p>
+    <div class="field"><label for="sDate">วันที่กด "ตกลง" ในแอป My GPF</label><input class="inp" id="sDate" type="date" value="${beToIso(todayD())}"></div>
+    <div class="seg" role="group"><button data-smode="one" aria-pressed="true">แผนสำเร็จรูป</button><button data-smode="mix" aria-pressed="false">ผสมสัดส่วนเอง</button></div>
+    <div id="sTo"></div><div id="sPrev" class="card"></div><button class="btn block" id="sSave">บันทึกการเปลี่ยนแผน</button></div>`, b => {
+    let mode = 'one';
+    const drawTo = () => { $('#sTo').innerHTML = mode === 'one' ? `<div class="field"><label for="sPlan">ย้ายไปแผน</label><select class="inp" id="sPlan">${planOptions('หุ้นต่างประเทศ')}</select></div>` : `<div class="stack" id="sMix">${PLANS.filter(p => !['เชิงรุก 20', 'เชิงรุก 75', 'เกษียณสบายใจ 2569'].includes(p)).map(p => `<div class="row between"><label for="m_${esc(p)}" style="font-size:14px">แผน${esc(sh(p))}</label><input class="inp num" style="width:84px;flex:none;margin-left:auto" type="number" min="0" max="100" step="5" id="m_${esc(p)}" data-mix="${esc(p)}" placeholder="0">%</div>`).join('')}<div class="note" id="mixSum"></div></div>`; b.querySelectorAll('#sTo input,#sTo select').forEach(i => i.addEventListener('input', prev)); prev(); };
+    const target = () => { if (mode === 'one') return {[$('#sPlan').value]: 1}; const o = {}; let s = 0; b.querySelectorAll('[data-mix]').forEach(i => { const v = +i.value || 0; if (v > 0) { o[i.dataset.mix] = v / 100; s += v; } }); $('#mixSum').textContent = `รวม ${s}% ${s === 100 ? '✓' : '(ต้องรวม 100%)'}`; return s === 100 ? o : null; };
+    const prev = () => { const to = target(); const t = d2t(isoToBe($('#sDate').value)); const v = valueAt(t); const ok = to && Object.keys(to).every(p => navAt(p, t)); $('#sPrev').innerHTML = `<div class="eyebrow">ยอดที่ย้ายโดยประมาณ</div><div style="font-weight:700;font-family:var(--f-display);font-size:20px">${money(v.value)}</div>${to ? Object.entries(to).map(([p, w]) => { const n = navAt(p, t); return `<div class="row between" style="font-size:13.5px"><span>แผน${esc(sh(p))} ${Math.round(w * 100)}%</span><span class="mono">${n ? nf(v.value * w / n.v, 4) + ' หน่วย' : 'ไม่มี NAV'}</span></div>`; }).join('') : ''}<p class="note" style="margin:6px 0 0">ตัวเลขจะคำนวณใหม่ด้วย NAV จริงของวันนั้นเมื่ออัปเดต NAV</p>`; $('#sSave').disabled = !ok; };
+    b.querySelectorAll('[data-smode]').forEach(x => x.addEventListener('click', () => { mode = x.dataset.smode; b.querySelectorAll('[data-smode]').forEach(y => y.setAttribute('aria-pressed', y === x)); drawTo(); }));
+    $('#sDate').addEventListener('input', prev); drawTo();
+    $('#sSave').addEventListener('click', async () => { const to = target(); if (!to) return; S.user.entries.push({id: uid(), type: 'switch', date: isoToBe($('#sDate').value), to, createdAt: Date.now()}); await saveUser(); closeSheet(); toast('บันทึกการเปลี่ยนแผนแล้ว'); });
+  });
+}
+function sheetCheck() {
+  const t = asOfT(); const h = holdingsAt(1e9);
+  openSheet('ตรวจยอดกับ My GPF', `<div class="stack"><p class="note" style="margin:0">เปิดแอป My GPF แล้วกรอกยอดเงินทั้งหมดกับวันที่ที่แอปแสดง ถ้าต่างกัน ให้กรอกจำนวนหน่วยแต่ละแผนจาก My GPF เพื่อปรับให้ตรง</p>
+    <div class="grid2"><div class="field"><label for="kDate">ยอด ณ วันที่</label><input class="inp" id="kDate" type="date" value="${beToIso(S.asOf || todayD())}"></div><div class="field"><label for="kAmt">ยอดเงินทั้งหมดใน My GPF</label><input class="inp num" id="kAmt" type="number" step="0.01" inputmode="decimal"></div></div>
+    <div id="kRes"></div>
+    <details><summary class="note" style="cursor:pointer">ปรับจำนวนหน่วยให้ตรง My GPF</summary><div class="stack" style="margin-top:8px">${Object.keys(h).map(p => `<div class="field"><label for="k_${esc(p)}">หน่วยแผน${esc(sh(p))} (ในแอปนี้ ${nf(h[p], 4)})</label><input class="inp mono" data-ku="${esc(p)}" id="k_${esc(p)}" type="number" step="0.0001" value="${r4(h[p])}"></div>`).join('')}<button class="btn sec" id="kAdj">บันทึกจำนวนหน่วยนี้</button></div></details>
+    <button class="btn block" id="kSave">บันทึกผลตรวจ</button></div>`, b => {
+    const calc = () => { const tt = d2t(isoToBe($('#kDate').value)); const ours = valueAt(tt).value; const amt = +$('#kAmt').value; if (!amt) { $('#kRes').innerHTML = `<div class="card"><div class="eyebrow">ยอดในแอปนี้ ณ ${thd(isoToBe($('#kDate').value))}</div><b>${money(ours)}</b></div>`; return null; } const diff = r2(ours - amt); $('#kRes').innerHTML = `<div class="card"><div class="row between"><span>ในแอปนี้</span><b class="num">${money(ours)}</b></div><div class="row between"><span>My GPF</span><b class="num">${money(amt)}</b></div><div class="row between" style="margin-top:6px"><span>ส่วนต่าง</span>${Math.abs(diff) < 1 ? '<span class="pill ok">✓ ตรงกัน</span>' : `<span class="pill warn">${moneyN(diff, 2, true)}</span>`}</div>${Math.abs(diff) >= 1 ? '<p class="note" style="margin:6px 0 0">สาเหตุที่พบบ่อย: NAV ของวันนั้นยังไม่ได้อัปเดต, ยังไม่ได้บันทึกเงินนำส่งล่าสุด, หรือ My GPF แสดงยอดก่อนประกาศราคา</p>' : ''}</div>`; return {date: isoToBe($('#kDate').value), mygpf: amt, ours, diff}; };
+    $('#kDate').addEventListener('input', calc); $('#kAmt').addEventListener('input', calc); calc();
+    $('#kSave').addEventListener('click', async () => { const r = calc(); if (!r) return toast('กรอกยอดจาก My GPF ก่อน'); S.user.checks.push({id: uid(), ...r, createdAt: Date.now()}); await saveUser(); closeSheet(); toast(Math.abs(r.diff) < 1 ? 'ยอดตรงกับ My GPF' : 'บันทึกผลตรวจแล้ว'); });
+    $('#kAdj').addEventListener('click', async () => { const u = {}; b.querySelectorAll('[data-ku]').forEach(i => { if (+i.value > 0) u[i.dataset.ku] = +i.value; }); S.user.entries.push({id: uid(), type: 'units', date: isoToBe($('#kDate').value), units: u, createdAt: Date.now()}); await saveUser(); closeSheet(); toast('ปรับจำนวนหน่วยแล้ว'); });
+  });
+}
+function beToIso(be) { const [y, m, d] = be.split('-'); return `${+y - 543}-${m}-${d}`; }
+function isoToBe(iso) { if (!iso) return todayD(); const [y, m, d] = iso.split('-'); return `${+y + 543}-${m}-${d}`; }
+
+/* NAV update */
+function validateNav(parsed) {
+  const res = [];
+  for (const [d, vals] of Object.entries(parsed)) {
+    const t = d2t(d); const flags = []; const exists = NAVDATES.includes(d); let same = exists;
+    for (const [p, v] of Object.entries(vals)) { const prev = (NAV[p] || []).filter(n => n.t < t && (n.src === 'official' || ['gpf', 'manual', 'excel', 'auto'].includes(n.src))).pop(); if (prev) { const ch = v / prev.v - 1; const days = t - prev.t; if (Math.abs(ch) > Math.max(0.06, 0.012 * Math.sqrt(days))) flags.push(`แผน${sh(p)} เปลี่ยน ${pct(ch)} จาก ${thd(prev.d)}`); } const cur = navExact(p, t); if (exists && (!cur || Math.abs(cur.v - v) > 1e-6)) same = false; }
+    if (d2t(d) > d2t(todayD()) + 1) flags.push('วันที่อยู่ในอนาคต');
+    const missing = PLANS.filter(p => !['เกษียณสบายใจ 2569'].includes(p) && NAV[p] && !(p in vals)); if (missing.length > 3) flags.push(`ขาด ${missing.length} แผน`);
+    res.push({d, vals, flags, exists, same});
+  }
+  return res.sort((a, b) => b.d.localeCompare(a.d));
+}
+function sheetNav() {
+  openSheet('อัปเดต NAV', `<div class="stack">
+    <div class="card stack"><b>1. เปิดหน้ามูลค่ากองทุนของ กบข.</b><a class="btn sec" href="${GPF_URL}" target="_blank" rel="noopener">เปิดเว็บ กบข. ↗</a><p class="note" style="margin:0">ลากคลุมกล่อง "มูลค่ากองทุนส่วนสมาชิก" ตั้งแต่ "วันที่ประกาศใช้" จนถึงแผนสุดท้าย แล้วคัดลอก</p></div>
+    <div class="card stack"><b>2. วางข้อความที่คัดลอก</b><textarea class="inp" id="navTxt" placeholder="วันที่ประกาศใช้ 09/10/2569&#10;แผนเชิงรุก 20* … 30.9961&#10;แผนตราสารหนี้ 24.3028&#10;…"></textarea>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn sec" for="navXls" style="flex:1">หรือเลือกไฟล์ Excel จาก กบข.</label><input id="navXls" type="file" accept=".xlsx,.xls,.csv" multiple hidden></div></div>
+    <div id="navPrev"></div></div>`, b => {
+    let parsed = {}, source = 'gpf';
+    const show = () => { const v = validateNav(parsed); if (!v.length) { $('#navPrev').innerHTML = $('#navTxt').value.trim() ? '<div class="banner">ยังหาวันที่หรือราคาไม่เจอ ลองคัดลอกให้ครอบคลุมบรรทัด "วันที่ประกาศใช้" ด้วย</div>' : ''; return; }
+      const fresh = v.filter(x => !x.same);
+      $('#navPrev').innerHTML = `<div class="card stack"><b>3. ตรวจก่อนบันทึก</b>${v.slice(0, 12).map(x => `<div style="border-top:1px solid var(--line-2);padding-top:8px"><div class="row between"><b>${thd(x.d, true)}</b>${x.same ? '<span class="pill">มีอยู่แล้ว ข้อมูลตรงกัน</span>' : x.exists ? '<span class="pill warn">มีอยู่แล้ว ราคาต่างกัน จะแทนที่</span>' : '<span class="pill ok">ใหม่</span>'}</div><div class="note">${Object.keys(x.vals).length} แผน${x.vals[heldPlans()[0]] ? ` · ${esc(sh(heldPlans()[0]))} ${nf(x.vals[heldPlans()[0]], 4)}` : ''}</div>${x.flags.map(f => `<div class="pill warn" style="margin-top:4px">${esc(f)}</div>`).join(' ')}</div>`).join('')}${v.length > 12 ? `<p class="note">และอีก ${v.length - 12} วัน</p>` : ''}
+        <button class="btn block" id="navSave" ${fresh.length ? '' : 'disabled'}>${fresh.length ? `บันทึก ${fresh.length} วัน` : 'ไม่มีข้อมูลใหม่'}</button></div>`;
+      $('#navSave')?.addEventListener('click', async () => { for (const x of fresh) await saveNav(x.d, {values: x.vals, source, flags: x.flags, savedAt: Date.now()}); closeSheet(); toast(`บันทึก NAV ${fresh.length} วันแล้ว`); });
+    };
+    $('#navTxt').addEventListener('input', () => { source = 'gpf'; parsed = NavParse.parseNavText($('#navTxt').value); show(); });
+    $('#navXls').addEventListener('change', async e => { try { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); parsed = {}; for (const f of e.target.files) { const wb = XLSX.read(await f.arrayBuffer(), {type: 'array', cellDates: false}); for (const n of wb.SheetNames) Object.assign(parsed, NavParse.parseNavRows(XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: true}))); } source = 'excel'; show(); } catch (err) { $('#navPrev').innerHTML = `<div class="banner">อ่านไฟล์ไม่สำเร็จ: ${esc(err.message || err)}</div>`; } });
+  });
+}
+const loaded = {}; function loadScript(src) { return loaded[src] ||= new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('โหลดตัวอ่านไฟล์ไม่สำเร็จ')); document.head.appendChild(s); }); }
+let PDFLIB = null;
+async function pdfLib() {
+  if (PDFLIB) return PDFLIB;
+  if (SA) { try { const m = await import(new URL('vendor/pdf.min.mjs', location.href).href); m.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.mjs', location.href).href; return PDFLIB = m; } catch (e) { console.warn('local pdf.js failed', e); } }
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'); await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  return PDFLIB = window.pdfjsLib;
+}
+async function readPdf(file) {
+  const lib = await pdfLib(); const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer()), disableFontFace: true}).promise; const pages = [];
+  for (let i = 1; i <= doc.numPages; i++) { const p = await doc.getPage(i); const vp = p.getViewport({scale: 1}); const tc = await p.getTextContent(); pages.push({items: tc.items.map(it => ({str: it.str, x: it.transform[4], y: vp.height - it.transform[5], w: it.width}))}); }
+  return pages;
+}
+function sheetImport() {
+  openSheet('นำเข้า PDF จาก My GPF', `<div class="stack"><p class="note" style="margin:0">เลือกได้หลายไฟล์พร้อมกัน รองรับ 3 แบบจากเมนูใบแจ้งยอดในแอป My GPF: <b>รายการเคลื่อนไหวตามแผนการลงทุน</b> (สำคัญที่สุด ใช้คำนวณหน่วย), <b>ตามประเภทเงิน</b> และ <b>สรุปยอดเงินสมาชิก</b> ไฟล์ปีที่เคยนำเข้าจะถูกแทนที่ด้วยไฟล์ใหม่</p>
+    <label class="btn block" for="pdfIn">เลือกไฟล์ PDF</label><input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden><div id="pdfRes"></div></div>`, b => {
+    $('#pdfIn').addEventListener('change', async e => {
+      const files = [...e.target.files]; const out = []; $('#pdfRes').innerHTML = '<p class="note">กำลังอ่านไฟล์…</p>';
+      for (const f of files) { const warns = []; try { const pages = await readPdf(f); const r = GpfParse.parseGpf(pages, w => warns.push(w)); out.push({name: f.name, ...r, warns}); } catch (err) { out.push({name: f.name, kind: 'error', warns: [String(err.message || err)]}); } }
+      const lab = {plan: 'ตามแผนการลงทุน', detail: 'ตามประเภทเงิน', summary: 'สรุปยอด', unknown: 'ไม่รู้จักรูปแบบ', error: 'อ่านไม่ได้'};
+      const yrs = r => r.rows ? [...new Set(r.rows.map(x => x.date?.slice(0, 4)).filter(Boolean))].join(', ') : (r.summary?.year || '');
+      $('#pdfRes').innerHTML = `<div class="card stack">${out.map(r => `<div><div class="row between"><b style="font-size:14px;word-break:break-all">${esc(r.name)}</b><span class="pill ${['plan', 'detail', 'summary'].includes(r.kind) ? 'ok' : 'bad'}">${lab[r.kind]}</span></div><div class="note">${r.rows ? `${r.rows.length} รายการ · ปี ${yrs(r)}` : r.summary ? `ปี ${r.summary.year} · ยอด ${moneyN(r.summary.total?.[2])} ณ ${thd(r.summary.asOf)}` : ''}</div>${r.warns.slice(0, 3).map(w => `<div class="note" style="color:var(--warn)">${esc(w)}</div>`).join('')}</div>`).join('')}
+        <div id="pdfCheck"></div><button class="btn block" id="pdfSave" ${out.some(r => ['plan', 'detail', 'summary'].includes(r.kind)) ? '' : 'disabled'}>รวมเข้าพอร์ต</button></div>`;
+      $('#pdfSave')?.addEventListener('click', async () => { const L = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); await saveLedger(L); closeSheet(); toast(`นำเข้าแล้ว · ${L.txns.length} รายการ`); });
+    });
+  });
+}
+function mergeLedger(L, results) {
+  L = JSON.parse(JSON.stringify(L)); L.files ||= [];
+  for (const r of results) {
+    if (r.kind === 'plan' && r.rows.length) { const ys = new Set(r.rows.map(x => x.date?.slice(0, 4))); L.txns = L.txns.filter(x => !ys.has(x.date.slice(0, 4))).concat(r.rows.filter(x => x.date).map(x => ({date: x.date, kind: x.kind === 'other' ? (x.amount < 0 ? 'switch_out' : 'contrib') : x.kind, plan: x.plan, nav: x.nav, units: x.units, amount: x.amount}))); }
+    if (r.kind === 'detail' && r.rows.length) { const ys = new Set(r.rows.map(x => x.date?.slice(0, 4))); L.detail = L.detail.filter(x => !ys.has(x.date.slice(0, 4))).concat(r.rows.filter(x => x.date)); }
+    if (r.kind === 'summary' && r.summary?.year) { L.summary = L.summary.filter(s => s.year !== r.summary.year).concat([r.summary]); }
+    if (['plan', 'detail', 'summary'].includes(r.kind)) L.files = L.files.filter(f => f.name !== r.name).concat([{name: r.name, kind: r.kind, at: Date.now()}]);
+  }
+  // contributions that also appear in switch dates: fix kind using detail labels
+  const swD = new Set(L.detail.filter(d => d.kind === 'switch_in').map(d => d.date)); const cD = new Set(L.detail.filter(d => d.kind === 'contrib').map(d => d.date));
+  for (const x of L.txns) if (x.amount > 0 && swD.has(x.date) && !cD.has(x.date)) x.kind = 'switch_in';
+  L.txns.sort((a, b) => a.date.localeCompare(b.date)); L.detail.sort((a, b) => a.date.localeCompare(b.date)); L.summary.sort((a, b) => a.year - b.year); L.importedAt = Date.now();
+  return L;
+}
+function sheetSettings() {
+  const st = S.user.settings;
+  openSheet('ตั้งค่า', `<div class="stack">
+    <div class="field"><label>ธีม</label><div class="seg">${[['system', 'ตามเครื่อง'], ['light', 'สว่าง'], ['dark', 'มืด']].map(([k, l]) => `<button data-theme-set="${k}" aria-pressed="${(st.theme || 'system') === k}">${l}</button>`).join('')}</div></div>
+    <div class="field"><label for="oomIn">อัตราออมเพิ่ม (% ของเงินเดือน)</label><input class="inp num" id="oomIn" type="number" min="0" max="27" step="1" value="${st.oomperm || 0}"><span class="hint">ใช้แสดงในหน้าแรกและข้อมูลอ้างอิง ไม่มีผลต่อการคำนวณ</span></div>
+    <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
+    <button class="btn block" id="setSave">บันทึก</button>
+    <p class="note">GPF Journal ใช้ข้อมูลจากใบแจ้งยอดของคุณและ NAV ที่ กบข. เผยแพร่ ตัวเลขทางการให้ยึดตามแอป My GPF</p></div>`, b => {
+    b.querySelectorAll('[data-theme-set]').forEach(x => x.addEventListener('click', () => { st.theme = x.dataset.themeSet; applyTheme(); b.querySelectorAll('[data-theme-set]').forEach(y => y.setAttribute('aria-pressed', y === x)); }));
+    $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
+    $('#bkOut').addEventListener('click', doBackup);
+    $('#bkIn').addEventListener('change', e => restoreBackup(e.target.files[0]));
+  });
+}
+async function doBackup() {
+  const data = JSON.stringify({app: 'gpf-journal', v: 1, savedAt: Date.now(), ledger: S.ledger, user: stripUser(S.user), navDb: S.navDb}, null, 1); const filename = `gpf-journal-${todayD()}.json`;
+  if (SA) { const url = URL.createObjectURL(new Blob([data], {type: 'application/json'})); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); store.set('lastBackup', Date.now()); toast('ดาวน์โหลดไฟล์สำรองแล้ว'); render(); return; }
+  const dl = await claudeUse('downloads'); if (!dl) return toast('เปิดในแอป Claude เพื่อดาวน์โหลดไฟล์'); try { await dl.save({filename, data}); store.set('lastBackup', Date.now()); } catch { toast('ยกเลิกการดาวน์โหลด'); }
+}
+async function restoreBackup(file) { try { const j = JSON.parse(await file.text()); if (j.app !== 'gpf-journal') throw 0; if (j.ledger) await saveLedger(j.ledger); if (j.user) { S.user = {entries: j.user.entries || [], checks: j.user.checks || [], settings: j.user.settings || {}}; await saveUser(); } if (j.navDb) for (const [d, doc] of Object.entries(j.navDb)) await saveNav(d, doc); closeSheet(); store.set('lastBackup', Date.now()); toast('กู้คืนข้อมูลแล้ว'); } catch { toast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ GPF Journal'); } }
+function backupDue() { if (!S.ledger) return 0; const last = store.get('lastBackup', 0) || S.ledger.importedAt || 0; const days = Math.floor((Date.now() - last) / 864e5); return days >= 30 ? days : 0; }
+function applyTheme() { const th = S.user.settings.theme || store.get('theme', 'system'); store.set('theme', th); if (th === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); }
+
+/* ---------- persistence ---------- */
+let DB = null; const q = []; let qBusy = false;
+async function claudeUse(n) { try { return window.claude?.use ? await window.claude.use(n) : null; } catch { return null; } }
+function stripUser(u) { return {entries: u.entries.map(({_status, _est, _rows, ...e}) => e), checks: u.checks, settings: u.settings}; }
+function enqueue(fn) { return new Promise((res) => { q.push(async () => { try { await fn(); } catch (e) { console.warn(e); toast(e?.code === 'quota_exceeded' ? 'พื้นที่เก็บข้อมูลเต็ม' : 'บันทึกขึ้นบัญชีไม่สำเร็จ เก็บไว้ในเครื่องนี้แทน'); } res(); }); run(); }); }
+async function run() { if (qBusy) return; qBusy = true; while (q.length) await q.shift()(); qBusy = false; }
+async function saveUser() { const u = stripUser(S.user); store.set('user', u); recompute(); if (DB) await enqueue(() => DB.doc('p/user').set(u)); }
+async function saveLedger(L) { S.ledger = L; store.set('ledger', L); recompute(); if (DB) await enqueue(() => DB.doc('p/ledger').set(L)); }
+async function saveNav(d, doc) { S.navDb[d] = doc; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).set({date: d, ...doc})); }
+async function deleteNav(d) { delete S.navDb[d]; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).delete()); }
+async function loadFeeds() {
+  try { const r = await fetch('data/nav.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.navFile = j.nav || j; store.set('navFile', S.navFile); S.feedAt = j.updatedAt || null; } } catch {}
+  try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); store.set('news', S.news); } } catch {}
+}
+async function initDb() {
+  if (SA) { S.mode = 'standalone'; try { navigator.storage?.persist?.(); } catch {} await loadFeeds(); recompute(); return; }
+  const db = await claudeUse('db'); const user = await claudeUse('user');
+  if (user) { try { S.isOwner = await user.isOwner(); } catch {} }
+  if (!db) { S.mode = 'local'; recompute(); return; }
+  DB = db; S.mode = 'db'; let got = 0; const done = () => { if (++got === 2) recompute(); };
+  db.doc('p/ledger').onSnapshot(s => { if (s.exists) { S.ledger = structuredClone(s.data()); store.set('ledger', S.ledger); } else if (!S.isOwner) S.ledger = null; got >= 2 ? recompute() : done(); }, () => done());
+  db.doc('p/user').onSnapshot(s => { if (s.exists && !s.metadata.hasPendingWrites) { const d = structuredClone(s.data()); S.user = {entries: d.entries || [], checks: d.checks || [], settings: d.settings || {}}; store.set('user', S.user); applyTheme(); } got >= 2 ? recompute() : done(); }, () => done());
+  db.collection('nav').onSnapshot(qs => { const m = {}; for (const d of qs.docs) { const x = d.data(); m[d.id] = {values: x.values, source: x.source, flags: x.flags, savedAt: x.savedAt}; } S.navDb = m; store.set('navDb', m); if (got >= 2) recompute(); }, () => {});
+  db.collection('news').orderBy('date', 'desc').limit(60).onSnapshot(qs => { S.news = qs.docs.map(d => ({id: d.id, ...d.data()})); store.set('news', S.news); if (S.tab === 'news') render(); }, () => {});
+  setTimeout(() => { if (got < 2) { got = 2; recompute(); } }, 8000);
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button,[data-act]'); if (!b) return;
+  if (b.dataset.tab) { S.tab = b.dataset.tab; render(); window.scrollTo({top: 0}); try { history.replaceState(null, '', '#' + S.tab); } catch {} return; }
+  if (b.id === 'btnHide') { HIDE = !HIDE; store.set('hide', HIDE); render(); return; }
+  if (b.id === 'btnSettings') return sheetSettings();
+  if (b.dataset.step) { const i = SERIES.findIndex(s => s.date === S.asOf) + +b.dataset.step; if (SERIES[i]) { S.asOf = SERIES[i].date; S.asOfAuto = i === SERIES.length - 1; render(); } return; }
+  if (b.dataset.range) { S.range = b.dataset.range; render(); return; }
+  if (b.dataset.explain) return explainSheet(b.dataset.explain);
+  if (b.dataset.hseg) { S.histSeg = b.dataset.hseg; S.txYear = null; render(); return; }
+  if (b.dataset.year) { S.txYear = b.dataset.year === 'all' ? 'all' : (S.histSeg === 'tx' ? b.dataset.year : +b.dataset.year); render(); return; }
+  if (b.dataset.era) { $('#era-' + b.dataset.era)?.scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
+  if (b.dataset.fper) { S.fundPeriod = b.dataset.fper; render(); return; }
+  if (b.dataset.frange) { S.fundRange = b.dataset.frange; render(); return; }
+  if (b.dataset.fsel) { const p = b.dataset.fsel; const i = S.fundSel.indexOf(p); if (i >= 0) { if (S.fundSel.length > 1) S.fundSel.splice(i, 1); } else if (S.fundSel.length < 6) S.fundSel.push(p); else toast('เลือกได้สูงสุด 6 แผน'); render(); return; }
+  if (b.dataset.nf) { S.newsFilter = b.dataset.nf; render(); return; }
+  if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
+  if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
+  const act = b.dataset.act;
+  if (act === 'backup') return doBackup();
+  if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
+});
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') drawFundChart(); if (S.tab === 'history') render(); }, 150); });
+document.addEventListener('change', e => { if (e.target.id === 'bkInHome' && e.target.files[0]) restoreBackup(e.target.files[0]); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ---------- boot ---------- */
+(function boot() {
+  const h = (location.hash || '').slice(1); if (views[h]) S.tab = h;
+  applyTheme();
+  if (S.ledger || SA) S.mode = 'cached';
+  recompute();
+  initDb();
+})();
+
+</script>
+<script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+</body>
+</html>
