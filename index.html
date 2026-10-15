@@ -181,6 +181,7 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .mini{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
 .mini b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guide{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
 /* periods timeline */
 .tl{display:flex;height:30px;border-radius:8px;overflow:hidden;gap:2px;margin:6px 0 4px}
 .tl button{border:0;padding:0;font-size:11px;color:var(--accent-ink);font-weight:600;overflow:hidden;white-space:nowrap;min-width:6px}
@@ -557,14 +558,15 @@ function mixAt(t) { // allocation for new contributions at day t
   const days = [...new Set(T.filter(x => x.t < t || (x.t === t && x.kind !== 'contrib')).map(x => x.t))];
   for (const d of days) {
     const g = T.filter(x => x.t === d);
-    if (g.some(x => x.kind === 'switch_in' || x.kind === 'switch_out')) { const h = holdingsAt(d); const v = valueOf(h, d); const tot = v.value || 1; mix = {}; for (const [p, o] of Object.entries(v.parts)) mix[p] = o.value / tot; }
+    if (g.some(x => x.kind === 'switch_in' || x.kind === 'switch_out' || x.kind === 'opening')) { const h = holdingsAt(d); const v = valueOf(h, d); const tot = v.value || 1; mix = {}; for (const [p, o] of Object.entries(v.parts)) mix[p] = o.value / tot; }
     else if (g.some(x => x.kind === 'contrib')) { const c = g.filter(x => x.kind === 'contrib'); const tot = c.reduce((s, x) => s + x.amount, 0) || 1; mix = {}; for (const x of c) mix[x.plan] = (mix[x.plan] || 0) + x.amount / tot; }
   }
   return mix;
 }
 function buildTxns() {
   T = (S.ledger?.txns || []).map(x => ({...x, t: d2t(x.date), src: 'pdf'}));
-  const order = {switch_out: 0, switch_in: 1, adjust: 2, contrib: 3};
+  const op = S.ledger?.opening; if (op?.units) for (const [p, u] of Object.entries(op.units)) if (u > 0) T.push({date: op.date, t: d2t(op.date), kind: 'opening', plan: p, nav: navAt(p, d2t(op.date))?.v || 0, units: u, amount: 0, src: 'opening'});
+  const order = {opening: -1, switch_out: 0, switch_in: 1, adjust: 2, contrib: 3};
   const sortT = () => T.sort((a, b) => a.t - b.t || (order[a.kind] ?? 9) - (order[b.kind] ?? 9));
   sortT();
   const pdfContrib = T.filter(x => x.kind === 'contrib').map(x => x.t), pdfSwitch = T.filter(x => x.kind === 'switch_in').map(x => x.t);
@@ -595,7 +597,7 @@ function buildTxns() {
   const swDays = [...new Set(T.filter(x => x.kind === 'switch_in').map(x => x.t))];
   SW = swDays.map(t => ({t, date: t2d(t), outs: T.filter(x => x.t === t && x.kind === 'switch_out'), ins: T.filter(x => x.t === t && x.kind === 'switch_in')}));
 }
-function principalAt(t) { let s = 0; for (const x of T) { if (x.t > t) break; if (x.kind === 'contrib') s += x.amount; } return r2(s); }
+function principalAt(t) { const op = S.ledger?.opening; let s = op && op.principal && t >= d2t(op.date) ? op.principal : 0; for (const x of T) { if (x.t > t) break; if (x.kind === 'contrib') s += x.amount; } return r2(s); }
 function flows(a, b) { return T.filter(x => x.kind === 'contrib' && x.t > a && x.t <= b); }
 function dietz(a, b) { // modified Dietz over (a,b]
   const V0 = valueAt(a).value, V1 = valueAt(b).value; const F = flows(a, b); const C = F.reduce((s, x) => s + x.amount, 0);
@@ -621,7 +623,8 @@ function addSummaryNav() { // derive NAV point from a statement total when a sin
   for (const s of S.ledger.summary) { if (!s.asOf || !s.total) continue; const t = d2t(s.asOf); const h = holdingsAt(t); const ps = Object.keys(h); if (ps.length !== 1) continue; const p = ps[0]; const near = navAt(p, t); if (near && t - near.t <= 4) continue; const v = r4(s.total[2] / h[p]); (NAV[p] ||= []).push({d: s.asOf, t, v, src: 'summary'}); NAV[p].sort((a, b) => a.t - b.t); }
 }
 function recompute() {
-  buildNav(); buildTxns(); addSummaryNav(); buildSeries();
+  buildNav();
+  if (S.ledger?.txns?.length && !S.ledger.opening) { const o = deriveOpening(S.ledger); if (o) S.ledger.opening = o; } buildTxns(); addSummaryNav(); buildSeries();
   const last = SERIES.length ? SERIES[SERIES.length - 1].date : null;
   if (!S.asOf || !SERIES.some(s => s.date === S.asOf) || S.asOfAuto) { S.asOf = last; S.asOfAuto = true; }
   render();
@@ -707,9 +710,13 @@ function emptyPortfolio(el) {
   el.innerHTML = `<div class="card empty" style="margin-top:8px"><h3>ยังไม่มีข้อมูลพอร์ต</h3><p class="note">นำเข้าไฟล์ PDF ใบแจ้งยอดจากแอป My GPF (ตามแผนการลงทุน, ตามประเภทเงิน และสรุปยอด) แล้วแอปจะคำนวณหน่วย มูลค่า และกำไรให้ทั้งหมด${S.mode === 'local' ? '<br><br>ตอนนี้เปิดหน้านี้นอกแอป Claude จึงอ่านข้อมูลที่บันทึกไว้ไม่ได้ เปิดลิงก์นี้ในแอป Claude เพื่อดูพอร์ตของคุณ' : ''}</p><button class="btn" data-act="import">นำเข้า PDF</button></div>`;
   return true;
 }
+const DL_GUIDE = `<ol class="guide"><li>เปิดแอป <b>My GPF</b> → แท็บ <b>My Account</b> → <b>ดูยอดเงินย้อนหลังรายปี</b> (ได้สูงสุด 5 ปี)</li>
+  <li>แท็บ <b>ตามประเภทเงินนำส่ง</b>: ทุกปี กด <b>ดาวน์โหลด</b> ทั้ง 2 ปุ่ม คือ "ดูยอดเงิน" และ "ดูรายละเอียดรายการ"</li>
+  <li>แท็บ <b>ตามแผนการลงทุน</b>: ทุกปี กด <b>ดาวน์โหลด</b> ที่ "ดูรายละเอียดรายการ" <span class="pill warn">สำคัญที่สุด</span></li>
+  <li>รวม 3 ไฟล์ต่อปี × 5 ปี = 15 ไฟล์ แล้วกดนำเข้า PDF เลือกทั้งหมดพร้อมกัน</li></ol>`;
 function onboarding() {
   return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
-  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ขอไฟล์ PDF จากแอป My GPF</div><div class="s">เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ทุกปีตั้งแต่ปีแรกที่เป็นสมาชิก (สำคัญที่สุด ไฟล์ชื่อ TransactionUnitDetail_…_ปี ค.ศ.) จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
+  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div>${DL_GUIDE}<div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี ไฟล์ชื่อ TransactionUnitDetail_…) และ "ยอดเงินตามประเภทเงินสะสม" (BalanceTransaction_…) ของปีเดียวกัน แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
   <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
   <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
   <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
@@ -723,8 +730,9 @@ function periodStats(t) {
   const w = prevPoint(t, 7); if (w) out.week = {...dietz(w.t, t), label: '1 สัปดาห์', since: w.date};
   const dt = new Date(t * 864e5); const mStart = Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1) / 864e5; const m = prevPoint(mStart, 0) ; if (m) out.month = {...dietz(m.t, t), label: 'เดือนนี้', since: m.date};
   const yStart = Date.UTC(dt.getUTCFullYear(), 0, 1) / 864e5; const y = prevPoint(yStart, 0); if (y) out.ytd = {...dietz(y.t, t), label: `ปี ${dt.getUTCFullYear() + 543}`, since: y.date};
-  const V = valueAt(t).value, P = principalAt(t); const cfs = T.filter(x => x.kind === 'contrib' && x.t <= t).map(x => ({t: x.t, amt: -x.amount})); cfs.push({t, amt: V});
-  out.all = {gain: r2(V - P), simple: P ? (V - P) / P : null, r: P ? (V - P) / P : null, irr: xirr(cfs), label: 'ตั้งแต่เริ่ม', since: T[0] ? T[0].date : null, C: P, V1: V, V0: 0};
+  const V = valueAt(t).value, P = principalAt(t); const op = S.ledger?.opening; const cfs = T.filter(x => x.kind === 'contrib' && x.t <= t).map(x => ({t: x.t, amt: -x.amount}));
+  if (op) { const ot = d2t(op.date); cfs.unshift({t: ot, amt: -valueAt(ot).value}); } cfs.push({t, amt: V});
+  out.all = {gain: r2(V - P), simple: P ? (V - P) / P : null, r: P ? (V - P) / P : null, irr: xirr(cfs), label: 'ตั้งแต่เริ่ม', since: T[0] ? T[0].date : null, C: P, V1: V, V0: 0, irrSince: op ? op.date : null};
   return out;
 }
 function renderHome() {
@@ -754,7 +762,7 @@ function renderHome() {
     <div class="kv3">
       <div><div class="k"><span class="dot" style="background:var(--gold)"></span>เงินต้นสะสม</div><div class="v">${money(P)}</div></div>
       <div><div class="k">กำไรสะสม</div><div class="v ${cls(v.value - P)}">${money(v.value - P, 2, true)}</div></div>
-      <div><div class="k">ต่อปี (IRR)</div><div class="v ${cls(st.all.irr || 0)}">${pct(st.all.irr)}</div></div>
+      <div><div class="k">ต่อปี (IRR${st.all.irrSince ? ' ตั้งแต่ ' + thd(st.all.irrSince) : ''})</div><div class="v ${cls(st.all.irr || 0)}">${pct(st.all.irr)}</div></div>
     </div>
   </div>
   <div class="sec-h"><h2>ผลตอบแทนตามช่วงเวลา</h2><button class="link" data-act="explain">วิธีคิด</button></div>
@@ -779,7 +787,9 @@ function renderHome() {
   drawHomeChart();
 }
 function sumGov(t) {
-  const det = (S.ledger?.detail || []).filter(d => d.kind === 'contrib' && d2t(d.date) <= t);
+  const sums = (S.ledger?.summary || []).filter(x => x.asOf && x.saving && (d2t(x.asOf) <= t || !T.some(y => y.kind === 'contrib' && y.t > t && y.t <= d2t(x.asOf)))).sort((a, b) => a.asOf.localeCompare(b.asOf)); const base = sums[sums.length - 1];
+  const det0 = (S.ledger?.detail || []).filter(d => d.kind === 'contrib' && d2t(d.date) <= t && (!base || d2t(d.date) > d2t(base.asOf)));
+  const det = base ? [{saving: base.saving[0], extra: base.extra?.[0] || 0, match: base.match?.[0] || 0, comp: base.comp?.[0] || 0, initial: base.initial?.[0] || 0}, ...det0] : det0;
   const extra = S.user.entries.filter(e => e.type === 'contrib' && e._status === 'ok' && d2t(e.date) <= t);
   if (!det.length) return '<p class="note">นำเข้าไฟล์ "ตามประเภทเงิน" เพื่อดูสัดส่วนเงินสะสม เงินสมทบ และเงินชดเชย</p>';
   const s = k => r2(det.reduce((a, d) => a + d[k], 0));
@@ -814,7 +824,7 @@ function eras() {
   const bounds = [T[0].t, ...SW.map(s => s.t)]; const end = SERIES.length ? SERIES[SERIES.length - 1].t : T[T.length - 1].t; const out = [];
   bounds.forEach((b, i) => {
     const e = i + 1 < bounds.length ? bounds[i + 1] : end; const isLast = i + 1 >= bounds.length; const sw = i ? SW[i - 1] : null;
-    const startV = sw ? valueAt(b).value : 0;
+    const startV = sw || T[0]?.kind === 'opening' ? valueAt(b).value : 0;
     // plans at start: holdings right after
     const h = holdingsAt(b); const hv = valueOf(h, b); const mix = {}; const tot = hv.value || 1; for (const [p, o] of Object.entries(hv.parts)) mix[p] = o.value / tot;
     const endV = isLast ? valueAt(e).value : valueOf(holdingsAt(e - 1), e).value;
@@ -852,10 +862,11 @@ function yearRows() {
   for (let y = y0; y <= y1; y++) {
     const ye = Date.UTC(y, 11, 31) / 864e5; const ys = Date.UTC(y - 1, 11, 31) / 864e5;
     const endP = SERIES.filter(s => s.t <= ye).pop(); const startP = SERIES.filter(s => s.t <= ys).pop(); if (!endP) continue;
+    if (S.ledger?.opening && endP.t <= d2t(S.ledger.opening.date)) continue;
     const a = startP ? startP.t : endP.t - 400; const d = dietz(a, endP.t);
     const det = (S.ledger?.detail || []).filter(x => x.kind === 'contrib' && x.date.startsWith(String(y + 543)));
     const off = (S.ledger?.summary || []).find(s => s.year === y + 543);
-    let check = null; if (off?.total) { const v = valueAt(d2t(off.asOf)).value; const ref = Object.keys(holdingsAt(d2t(off.asOf))).some(p => navAt(p, d2t(off.asOf))?.src === 'summary'); check = {asOf: off.asOf, official: off.total[2], ours: v, diff: r2(v - off.total[2]), ref}; }
+    let check = null; if (off?.total) { const v = valueAt(d2t(off.asOf)).value; const at = d2t(off.asOf); const hp = Object.keys(holdingsAt(at)); const ref = hp.some(p => navAt(p, at)?.src === 'summary'); const stale = hp.some(p => { const n = navAt(p, at); return n && at - n.t > 4 && n.src !== 'summary'; }); check = {asOf: off.asOf, official: off.total[2], ours: v, diff: r2(v - off.total[2]), ref, stale}; }
     rows.push({y: y + 543, endP, startV: d.V0, C: d.C, endV: d.V1, gain: d.gain, r: d.r, det, check, off});
   }
   return rows;
@@ -911,16 +922,16 @@ function historyYears() {
     <div class="row between"><h3>ปี ${r.y}${r.endP.date !== `${r.y}-12-31` && r.y === +S.asOf?.slice(0, 4) ? ' <span class="pill acc">ถึง ' + thd(r.endP.date) + '</span>' : ''}</h3><div class="${cls(r.gain)}" style="font-weight:700;font-family:var(--f-display)">${money(r.gain, 2, true)} <span style="font-size:13px">${pct(r.r)}</span></div></div>
     <div class="kvs"><div><span>ยกมา</span><span>${money(r.startV)}</span></div><div><span>นำส่ง</span><span>${money(r.C)}</span></div><div><span>ปลายปี</span><span>${money(r.endV)}</span></div><div><span>ณ วันที่</span><span>${thd(r.endP.date)}</span></div>
     ${r.det.length ? `<div><span>ส่วนของคุณ</span><span>${money(s('saving') + s('extra'))}</span></div><div><span>ส่วนของรัฐ</span><span>${money(s('match') + s('comp') + s('initial'))}</span></div>` : ''}</div>
-    ${r.check ? `<div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">${r.check.ref ? `<span class="pill acc">ใช้ยอดใบแจ้งยอดเป็นจุดอ้างอิง NAV</span>` : Math.abs(r.check.diff) < 0.05 ? `<span class="pill ok">✓ ตรงกับใบแจ้งยอด กบข.</span>` : `<span class="pill warn">ต่างจากใบแจ้งยอด ${moneyN(r.check.diff, 2, true)}</span>`}<span class="note">${thd(r.check.asOf)} ยอด ${money(r.check.official)}</span></div>` : ''}
+    ${r.check ? `<div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">${r.check.stale ? `<span class="pill">รอ NAV ถึงวันที่ใบแจ้งยอด</span>` : r.check.ref ? `<span class="pill acc">ใช้ยอดใบแจ้งยอดเป็นจุดอ้างอิง NAV</span>` : Math.abs(r.check.diff) < 0.05 ? `<span class="pill ok">✓ ตรงกับใบแจ้งยอด กบข.</span>` : `<span class="pill warn">ต่างจากใบแจ้งยอด ${moneyN(r.check.diff, 2, true)}</span>`}<span class="note">${thd(r.check.asOf)} ยอด ${money(r.check.official)}</span></div>` : ''}
   </div>`; }).join('')}`;
 }
 function historyTx() {
   const years = [...new Set(T.map(x => x.date.slice(0, 4)))].reverse(); const yr = S.txYear && years.includes(String(S.txYear)) ? String(S.txYear) : years[0];
   const days = [...new Set(T.filter(x => x.date.startsWith(yr)).map(x => x.t))].reverse();
-  const lbl = {contrib: 'เงินนำส่ง', switch_out: 'ย้ายออก', switch_in: 'ย้ายเข้า', adjust: 'ปรับหน่วย'};
+  const lbl = {opening: 'ยอดยกมา', contrib: 'เงินนำส่ง', switch_out: 'ย้ายออก', switch_in: 'ย้ายเข้า', adjust: 'ปรับหน่วย'};
   return `<div class="chips">${years.map(y => `<button class="chip" data-year="${y}" aria-pressed="${yr === y}">${y}</button>`).join('')}</div>
-  <div class="card">${days.map(t => { const g = T.filter(x => x.t === t); const k = g.some(x => x.kind.startsWith('switch')) ? 'sw' : g[0].kind === 'adjust' ? 'adj' : 'in'; const amt = g.filter(x => x.kind === 'contrib').reduce((s, x) => s + x.amount, 0);
-    return `<div class="li"><div class="ic ${k === 'sw' ? 'sw' : 'in'}">${k === 'sw' ? '⇄' : k === 'adj' ? '±' : '+'}</div><div class="body"><div class="t">${k === 'sw' ? 'เปลี่ยนแผนการลงทุน' : k === 'adj' ? 'ปรับหน่วยให้ตรง My GPF' : 'เงินนำส่ง'} ${g.some(x => x.src === 'entry') ? '<span class="pill acc">บันทึกเอง</span>' : ''} ${g.some(x => x.est) ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(g[0].date, true)}</div>
+  <div class="card">${days.map(t => { const g = T.filter(x => x.t === t); const k = g.some(x => x.kind.startsWith('switch')) ? 'sw' : g[0].kind === 'adjust' ? 'adj' : g[0].kind === 'opening' ? 'op' : 'in'; const amt = g.filter(x => x.kind === 'contrib').reduce((s, x) => s + x.amount, 0);
+    return `<div class="li"><div class="ic ${k === 'sw' ? 'sw' : 'in'}">${k === 'sw' ? '⇄' : k === 'adj' ? '±' : '+'}</div><div class="body"><div class="t">${k === 'sw' ? 'เปลี่ยนแผนการลงทุน' : k === 'adj' ? 'ปรับหน่วยให้ตรง My GPF' : k === 'op' ? `ยอดยกมา (เงินต้น ${moneyN(S.ledger.opening.principal || 0)})` : 'เงินนำส่ง'} ${g.some(x => x.src === 'entry') ? '<span class="pill acc">บันทึกเอง</span>' : ''} ${g.some(x => x.est) ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(g[0].date, true)}</div>
       ${g.map(x => `<div class="s mono" style="font-size:12px">${lbl[x.kind]} ${esc(sh(x.plan))} · ${x.nav ? nf(x.nav, 4) : '—'} × ${nf(x.units, 4)}${x.amount ? ' = ' + moneyN(x.amount) : ''}</div>`).join('')}</div>
       <div class="amt">${amt ? `<b class="up">+${moneyN(amt)}</b>` : `<span class="muted">${moneyN(g.filter(x => x.kind === 'switch_in').reduce((s, x) => s + x.amount, 0))}</span>`}</div></div>`; }).join('')}</div>`;
 }
@@ -1122,6 +1133,7 @@ function renderRecord() {
     ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
     ${toolBtn('switch', 'แจ้งเปลี่ยนแผน', 'ย้ายทั้งพอร์ตไปแผนใหม่หรือผสมเอง', '<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}
     ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
+    ${S.ledger?.opening ? toolBtn('opening', 'ยอดยกมา', `${thd(S.ledger.opening.date, true)} · ${S.ledger.opening.source === 'manual' ? 'แก้เอง' : 'คำนวณอัตโนมัติ'}${S.ledger.opening.approx ? ' · ค่าประมาณ' : ''}`, '<path d="M4 6h16M4 12h10M4 18h6"/>') : ''}
     ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.txns?.length ? coverageText(S.ledger) : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
   </div>
   <div class="sec-h"><h2>รายการที่บันทึกเอง</h2><span class="note">${ents.length} รายการ</span></div>
@@ -1231,6 +1243,8 @@ async function readPdf(file) {
 }
 function sheetImport() {
   openSheet('นำเข้า PDF จาก My GPF', `<div class="stack"><p class="note" style="margin:0">เลือกได้หลายไฟล์พร้อมกัน รองรับ 3 แบบจากเมนูใบแจ้งยอดในแอป My GPF: <b>รายการเคลื่อนไหวตามแผนการลงทุน</b> (สำคัญที่สุด ใช้คำนวณหน่วย), <b>ตามประเภทเงิน</b> และ <b>สรุปยอดเงินสมาชิก</b> ไฟล์ปีที่เคยนำเข้าจะถูกแทนที่ด้วยไฟล์ใหม่ ส่วนปีอื่นยังอยู่ครบ จึงนำเข้าเพิ่มทีละปีได้</p>${S.ledger?.txns?.length ? `<div class="note">ตอนนี้มีข้อมูล: ${coverageText(S.ledger)}</div>` : ''}
+    ${S.ledger?.txns?.length ? `<label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="pdfReplace"> ล้างข้อมูลเดิมทั้งหมดก่อนนำเข้า (เริ่มใหม่)</label>` : ''}
+    <details><summary class="note" style="cursor:pointer">ต้องใช้ไฟล์อะไรบ้าง</summary>${DL_GUIDE}<p class="note" style="margin:0">ไฟล์ย้อนหลังไม่ถึงปีแรกที่เป็นสมาชิกก็ได้ แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นจากไฟล์ "ดูยอดเงิน" ของปีแรกให้เอง</p></details>
     <label class="btn block" for="pdfIn">เลือกไฟล์ PDF</label><input id="pdfIn" type="file" accept="application/pdf,.pdf" multiple hidden><div id="pdfRes"></div></div>`, b => {
     $('#pdfIn').addEventListener('change', async e => {
       const files = [...e.target.files]; const out = []; $('#pdfRes').innerHTML = '<p class="note">กำลังอ่านไฟล์…</p>';
@@ -1238,9 +1252,9 @@ function sheetImport() {
       const lab = {plan: 'ตามแผนการลงทุน', detail: 'ตามประเภทเงิน', summary: 'สรุปยอด', unknown: 'ไม่รู้จักรูปแบบ', error: 'อ่านไม่ได้'};
       const yrs = r => r.rows ? [...new Set(r.rows.map(x => x.date?.slice(0, 4)).filter(Boolean))].join(', ') : (r.summary?.year || '');
       $('#pdfRes').innerHTML = `<div class="card stack">${out.map(r => `<div><div class="row between"><b style="font-size:14px;word-break:break-all">${esc(r.name)}</b><span class="pill ${['plan', 'detail', 'summary'].includes(r.kind) ? 'ok' : 'bad'}">${lab[r.kind]}</span></div><div class="note">${r.rows ? `${r.rows.length} รายการ · ปี ${yrs(r)}` : r.summary ? `ปี ${r.summary.year} · ยอด ${moneyN(r.summary.total?.[2])} ณ ${thd(r.summary.asOf)}` : ''}</div>${r.warns.slice(0, 3).map(w => `<div class="note" style="color:var(--warn)">${esc(w)}</div>`).join('')}</div>`).join('')}
-        ${(() => { const M2 = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); const iss = ledgerIssues(M2); return `<div class="note">หลังรวมแล้วจะมีข้อมูล: ${coverageText(M2)}</div>${iss.map(i => `<div class="banner" style="background:var(--${i.level === 'bad' ? 'down' : 'warn'}-soft)">${esc(i.text)}</div>`).join('')}`; })()}
+        ${(() => { const M2 = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); const iss = ledgerIssues(M2); return `<div class="note">หลังรวมแล้วจะมีข้อมูล: ${coverageText(M2)}</div>${iss.map(i => `<div class="banner" style="background:var(--${{bad: 'down', warn: 'warn', info: 'accent'}[i.level]}-soft)">${esc(i.text)}</div>`).join('')}`; })()}
         <div id="pdfCheck"></div><button class="btn block" id="pdfSave" ${out.some(r => ['plan', 'detail', 'summary'].includes(r.kind)) ? '' : 'disabled'}>รวมเข้าพอร์ต</button></div>`;
-      $('#pdfSave')?.addEventListener('click', async () => { const L = mergeLedger(S.ledger || {txns: [], detail: [], summary: [], files: []}, out); await saveLedger(L); closeSheet(); toast(`นำเข้าแล้ว · ${L.txns.length} รายการ`); });
+      $('#pdfSave')?.addEventListener('click', async () => { const fresh = $('#pdfReplace')?.checked; if (fresh) await clearData(); const L = mergeLedger((!fresh && S.ledger) || {txns: [], detail: [], summary: [], files: []}, out); await saveLedger(L); closeSheet(); toast(`นำเข้าแล้ว · ${L.txns.length} รายการ`); });
     });
   });
 }
@@ -1250,7 +1264,7 @@ function ledgerIssues(L) {
   const planYears = [...new Set(tx.map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
   const detYears = [...new Set((L.detail || []).map(x => +x.date.slice(0, 4)))].sort((a, b) => a - b);
   const sumYears = (L.summary || []).map(x => x.year).filter(Boolean).sort((a, b) => a - b);
-  const u = {}; let neg = null;
+  const u = {}; let neg = null; for (const [p, v] of Object.entries(L.opening?.units || {})) u[p] = v;
   for (const x of tx) { u[x.plan] = (u[x.plan] || 0) + x.units; if (!neg && u[x.plan] < -0.01) neg = {plan: x.plan, date: x.date}; }
   const first = planYears[0], last = planYears[planYears.length - 1];
   const gaps = []; for (let y = first; y <= last; y++) if (!planYears.includes(y)) gaps.push(y);
@@ -1259,10 +1273,39 @@ function ledgerIssues(L) {
   const missing = [...before, ...gaps];
   if (neg) out.push({level: 'bad', text: `หน่วยของแผน${neg.plan}ติดลบเมื่อ ${thd(neg.date, true)} แปลว่ายังขาดไฟล์ "ตามแผนการลงทุน" ${before.length > 1 ? `ปี ${before[0]}–${before[before.length - 1]}` : `ปี ${before[0]} และปีก่อนหน้า (ย้อนไปถึงปีที่เริ่มเป็นสมาชิก)`} ในแอป My GPF ไฟล์ชื่อลงท้ายด้วยปี ค.ศ. เช่น TransactionUnitDetail_…_${before[before.length - 1] - 543}.pdf คือปี ${before[before.length - 1]} ตัวเลขพอร์ตจะยังไม่ถูกต้องจนกว่าจะนำเข้าครบ`, years: missing});
   if (gaps.length) out.push({level: 'bad', text: `ไฟล์ "ตามแผนการลงทุน" ขาดปี ${gaps.join(', ')}`, years: gaps});
+  if (L.opening) out.push({level: L.opening.approx ? 'warn' : 'info', text: `เริ่มนับจากยอดยกมา ณ ${thd(L.opening.date, true)} (${Object.entries(L.opening.units).map(([p, v]) => `${sh(p)} ${nf(v, 4)} หน่วย`).join(', ')} · เงินต้น ${moneyN(L.opening.principal)})${L.opening.check ? ` ตรวจกับใบสรุปยอด ${thd(L.opening.check.asOf)}: ${Math.abs(L.opening.check.ours - L.opening.check.official) < 1 ? 'ตรงกัน ✓' : 'ต่าง ' + moneyN(L.opening.check.ours - L.opening.check.official, 2, true)}` : ''}${L.opening.noSummary ? ' · ไม่มีไฟล์สรุปยอด เงินต้นยกมาจึงเป็นค่าประมาณ ใส่ไฟล์ BalanceTransaction ของปีแรกเพื่อความแม่นยำ หรือแก้เองในหน้าบันทึก' : L.opening.approx ? ' · แบ่งหน่วยระหว่างแผนโดยประมาณ ตรวจและแก้ได้ในหน้าบันทึก' : ''}`});
   const detMiss = planYears.filter(y => !detYears.includes(y)); if (detYears.length && detMiss.length) out.push({level: 'warn', text: `ไฟล์ "ตามประเภทเงิน" ยังไม่มีปี ${detMiss.join(', ')} ส่วน "ใครออมให้คุณ" จะนับไม่ครบ`});
   return out;
 }
 function coverageText(L) { const ys = a => { a = [...new Set(a)].sort((x, y) => x - y); return a.length ? (a.length > 1 ? `${a[0]}–${a[a.length - 1]}` : String(a[0])) : '—'; }; return `ตามแผนการลงทุน ${ys((L.txns || []).map(x => +x.date.slice(0, 4)))} · ตามประเภทเงิน ${ys((L.detail || []).map(x => +x.date.slice(0, 4)))} · สรุปยอด ${ys((L.summary || []).map(x => x.year))}`; }
+function navRaw(p, t) { const a = (NAV[p] || []).filter(n => n.src !== 'summary' && n.t <= t); return a.length ? a[a.length - 1] : null; }
+function deriveOpening(L) {
+  if (!L?.txns?.length) return null; if (L.opening?.source === 'manual') return L.opening;
+  const tx = [...L.txns].sort((a, b) => a.date.localeCompare(b.date) || (a.amount < 0 ? -1 : 1));
+  const y0 = +tx[0].date.slice(0, 4); const date = `${y0 - 1}-12-31`; const t0 = d2t(date);
+  const run = {}, min = {}; for (const x of tx) { run[x.plan] = (run[x.plan] || 0) + x.units; min[x.plan] = Math.min(min[x.plan] ?? 0, run[x.plan]); }
+  const units = {}; for (const [p, m] of Object.entries(min)) if (m < -0.0001) units[p] = r4(-m);
+  const sum = (L.summary || []).filter(x => x.asOf && x.total && x.asOf >= tx[0].date).sort((a, b) => a.asOf.localeCompare(b.asOf))[0];
+  let principal = null, approx = false, check = null;
+  if (sum) {
+    const ts = d2t(sum.asOf); const contrib = tx.filter(x => x.kind === 'contrib' && x.date <= sum.asOf).reduce((s, x) => s + x.amount, 0);
+    principal = r2(sum.total[0] - contrib);
+    const h = {...units}; for (const x of tx) if (x.date <= sum.asOf) h[x.plan] = (h[x.plan] || 0) + x.units;
+    let val = 0; for (const [p, u] of Object.entries(h)) { const n = navRaw(p, ts); if (n) val += u * n.v; }
+    let resid = sum.total[2] - val;
+    if (resid > 1) { // money held before the window in plans that never went negative: split by first-year contribution mix
+      const first = tx.filter(x => x.kind === 'contrib' && x.date.slice(0, 4) === String(y0)); const tot = first.reduce((s, x) => s + x.amount, 0) || 1; const w = {}; for (const x of first) w[x.plan] = (w[x.plan] || 0) + x.amount / tot;
+      const keys = Object.keys(w); if (keys.length > 1) approx = true;
+      for (const p of keys) { const n = navRaw(p, ts); if (n) units[p] = r4((units[p] || 0) + resid * w[p] / n.v); }
+      val = 0; const h2 = {...units}; for (const x of tx) if (x.date <= sum.asOf) h2[x.plan] = (h2[x.plan] || 0) + x.units; for (const [p, u] of Object.entries(h2)) { const n = navRaw(p, ts); if (n) val += u * n.v; }
+    }
+    check = {asOf: sum.asOf, official: sum.total[2], ours: r2(val)};
+    if (Math.abs(principal) < 1 && !Object.keys(units).length) return null;
+  } else if (!Object.keys(units).length) return null;
+  else { approx = true; }
+  if (principal == null) { let v = 0; for (const [p, u] of Object.entries(units)) { const n = navRaw(p, t0); if (n) v += u * n.v; } principal = r2(v); }
+  return {date, units, principal: Math.max(0, principal), source: 'auto', approx, check, noSummary: !sum};
+}
 function mergeLedger(L, results) {
   L = JSON.parse(JSON.stringify(L)); L.files ||= [];
   for (const r of results) {
@@ -1274,8 +1317,25 @@ function mergeLedger(L, results) {
   // contributions that also appear in switch dates: fix kind using detail labels
   const swD = new Set(L.detail.filter(d => d.kind === 'switch_in').map(d => d.date)); const cD = new Set(L.detail.filter(d => d.kind === 'contrib').map(d => d.date));
   for (const x of L.txns) if (x.amount > 0 && swD.has(x.date) && !cD.has(x.date)) x.kind = 'switch_in';
-  L.txns.sort((a, b) => a.date.localeCompare(b.date)); L.detail.sort((a, b) => a.date.localeCompare(b.date)); L.summary.sort((a, b) => a.year - b.year); L.importedAt = Date.now();
+  L.txns.sort((a, b) => a.date.localeCompare(b.date)); L.detail.sort((a, b) => a.date.localeCompare(b.date));
+  { const o = deriveOpening(L); if (o) L.opening = o; else delete L.opening; } L.summary.sort((a, b) => a.year - b.year); L.importedAt = Date.now();
   return L;
+}
+function sheetOpening() {
+  const o = S.ledger.opening; const plans = [...new Set([...Object.keys(o.units), ...S.ledger.txns.filter(x => x.date.slice(0, 4) === String(+o.date.slice(0, 4) + 1)).map(x => x.plan)])];
+  openSheet('ยอดยกมา', `<div class="stack"><p class="note" style="margin:0">แอป My GPF ให้ไฟล์ย้อนหลังได้ราว 5 ปี เงินที่สะสมก่อนหน้านั้นจึงนับเป็น "ยอดยกมา" ณ ${thd(o.date, true)} แอปคำนวณให้จากรายการย้ายแผนและใบสรุปยอดปีแรก ถ้ามีตัวเลขจริงจาก My GPF แก้ได้ที่นี่</p>
+    ${plans.map(p => `<div class="field"><label for="op_${esc(p)}">หน่วยแผน${esc(sh(p))}</label><input class="inp mono" data-op="${esc(p)}" id="op_${esc(p)}" type="number" step="0.0001" inputmode="decimal" value="${o.units[p] ? r4(o.units[p]) : ''}" placeholder="0"></div>`).join('')}
+    <div class="field"><label for="opP">เงินต้นสะสม (ก+ข) ณ วันนั้น</label><input class="inp num" id="opP" type="number" step="0.01" inputmode="decimal" value="${o.principal || ''}"><span class="hint">ดูจากใบสรุปยอดปีก่อนหน้า ช่อง "รวมเงินทั้งหมด (ก+ข)" คอลัมน์เงินต้น</span></div>
+    ${o.check ? `<div class="note">ตรวจกับใบสรุปยอด ${thd(o.check.asOf)}: แอปคำนวณได้ ${moneyN(o.check.ours)} · ใบสรุปยอด ${moneyN(o.check.official)}</div>` : ''}
+    <button class="btn block" id="opSave">บันทึก</button><button class="btn sec block" id="opAuto">คำนวณอัตโนมัติใหม่</button></div>`, b => {
+    $('#opSave').addEventListener('click', async () => { const u = {}; b.querySelectorAll('[data-op]').forEach(i => { if (+i.value > 0) u[i.dataset.op] = +i.value; }); const L = {...S.ledger, opening: {...o, units: u, principal: +$('#opP').value || 0, source: 'manual', approx: false}}; await saveLedger(L); closeSheet(); toast('บันทึกยอดยกมาแล้ว'); });
+    $('#opAuto').addEventListener('click', async () => { const L = {...S.ledger}; delete L.opening; const n = deriveOpening(L); if (n) L.opening = n; await saveLedger(L); closeSheet(); toast('คำนวณยอดยกมาใหม่แล้ว'); });
+  });
+}
+async function clearData() {
+  const L = null; S.ledger = null; store.set('ledger', null); S.user = {entries: [], checks: [], settings: S.user.settings}; store.set('user', stripUser(S.user)); S.asOf = null;
+  if (DB) { await enqueue(() => DB.doc('p/ledger').delete()); await enqueue(() => DB.doc('p/user').set(stripUser(S.user))); }
+  recompute(); void L;
 }
 function sheetSettings() {
   const st = S.user.settings;
@@ -1286,10 +1346,12 @@ function sheetSettings() {
     <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
     <button class="btn block" id="setSave">บันทึก</button>
+    <div class="card stack"><b>ล้างข้อมูลพอร์ต</b><p class="note" style="margin:0">ลบรายการจาก PDF ยอดยกมา และรายการที่บันทึกเอง เพื่อนำเข้าไฟล์ใหม่ทั้งหมด การตั้งค่าและ NAV ยังอยู่ ควรสำรองข้อมูลก่อน</p><button class="btn danger" id="clearBtn">ล้างข้อมูลพอร์ต</button></div>
     <p class="note">GPF Journal ใช้ข้อมูลจากใบแจ้งยอดของคุณและ NAV ที่ กบข. เผยแพร่ ตัวเลขทางการให้ยึดตามแอป My GPF</p></div>`, b => {
     b.querySelectorAll('[data-theme-set]').forEach(x => x.addEventListener('click', () => { st.theme = x.dataset.themeSet; applyTheme(); b.querySelectorAll('[data-theme-set]').forEach(y => y.setAttribute('aria-pressed', y === x)); }));
     $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; { const y = +$('#retIn').value; st.retireYear = y >= curYearBE() && y <= curYearBE() + 45 ? y : null; } await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
     $('#bkOut').addEventListener('click', doBackup);
+    $('#clearBtn').addEventListener('click', async e => { const bt = e.currentTarget; if (bt.dataset.confirm !== '1') { bt.dataset.confirm = '1'; bt.textContent = 'แตะอีกครั้งเพื่อยืนยันการลบ'; setTimeout(() => { if (bt.isConnected) { bt.dataset.confirm = ''; bt.textContent = 'ล้างข้อมูลพอร์ต'; } }, 4000); return; } await clearData(); closeSheet(); S.tab = 'home'; render(); toast('ล้างข้อมูลแล้ว นำเข้า PDF ใหม่ได้เลย'); });
     $('#bkIn').addEventListener('change', e => restoreBackup(e.target.files[0]));
   });
 }
@@ -1351,6 +1413,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
   if (act === 'backup') return doBackup();
+  if (act === 'opening') return sheetOpening();
   if (act === 'settings') return sheetSettings();
   if (act === 'retsave') { const y = +($('#retQuick')?.value || 0); if (!(y >= curYearBE() && y <= curYearBE() + 45)) return toast(`ใส่ปี พ.ศ. ระหว่าง ${curYearBE()}–${curYearBE() + 45}`); S.user.settings.retireYear = y; await saveUser(); toast('บันทึกปีเกษียณแล้ว'); return; }
   if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
