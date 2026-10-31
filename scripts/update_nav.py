@@ -50,7 +50,14 @@ def write_log(entry):
     except Exception:
         runs = []
     entry = {'at': now_utc(), **entry}
-    runs = [entry] + runs
+    top = runs[0] if runs else None
+    if top and top.get('status') == entry['status'] and top.get('msg') == entry['msg'] and entry['status'] != 'new':
+        # ผลซ้ำกับรอบก่อน: รวมเป็นบรรทัดเดียว ไม่ให้ log ยาวเกินจำเป็น
+        entry['n'] = top.get('n', 1) + 1
+        entry['since'] = top.get('since', top['at'])
+        runs = [entry] + runs[1:]
+    else:
+        runs = [entry] + runs
     LOG.parent.mkdir(parents=True, exist_ok=True)
     LOG.write_text(json.dumps({'runs': runs[:LOG_MAX]}, ensure_ascii=False, indent=1), encoding='utf-8')
 

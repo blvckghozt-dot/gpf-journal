@@ -1231,7 +1231,8 @@ function renderRecord() {
   const daysOld = lastD ? Math.round((d2t(todayD()) - d2t(lastD))) : 99;
   el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ข้อมูล NAV</h2><span class="pill ${daysOld <= 5 ? 'ok' : 'warn'}">${daysOld <= 5 ? 'เป็นปัจจุบัน' : `ผ่านมา ${daysOld} วัน`}</span></div>
   <div class="card stack"><div class="row between"><div><div class="eyebrow">NAV ล่าสุดในแอป</div><b style="font-family:var(--f-display);font-size:18px">${thd(lastD, true)}</b><div class="note">${ld ? `${{gpf: 'ดึงจากเว็บ กบข.', auto: 'อัปเดตอัตโนมัติ', manual: 'วางข้อความ', excel: 'นำเข้า Excel'}[ld.source] || ld.source}${ld.savedAt ? ' · บันทึก ' + new Date(ld.savedAt).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short'}) : ''}` : 'ข้อมูลตั้งต้นจากไฟล์ Excel ของ กบข.'}</div></div></div>
-    <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button></div>
+    <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button>
+    ${GH && ghToken() ? (() => { const u = unpublishedNav(); return u.length ? `<button class="btn sec block" data-act="navpublish">เผยแพร่ NAV ที่บันทึกในเครื่องให้ทุกคน (${u.length} วัน)</button>` : '<p class="note" style="margin:0">โหมดเจ้าของแอป: NAV ในเครื่องนี้เผยแพร่ให้ทุกคนครบแล้ว</p>'; })() : ''}</div>
   ${navLogCard()}
   <div class="sec-h"><h2>บันทึกรายการ</h2></div>
   <div class="stack">
@@ -1250,16 +1251,17 @@ function renderRecord() {
 function navLogCard() {
   if (!SA && !S.navLog) return '';
   const runs = S.navLog || []; const fmt = iso => new Date(iso).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok'});
-  const ST = {new: ['ได้ NAV ใหม่', 'ok'], same: ['ไม่มีข้อมูลใหม่', ''], fail: ['ล้มเหลว', 'bad']};
-  const last = runs[0], lastNew = runs.find(r => r.status === 'new'); const hrs = last ? (Date.now() - Date.parse(last.at)) / 36e5 : null;
+  const ST = {new: ['ได้ NAV ใหม่', 'ok'], same: ['ไม่มีข้อมูลใหม่', ''], fail: ['ล้มเหลว', 'bad'], manual: ['อัปเดตด้วยมือ', 'acc']};
+  const last = runs[0], lastNew = runs.find(r => r.status === 'new' || r.status === 'manual'); const hrs = last ? (Date.now() - Date.parse(last.at)) / 36e5 : null;
   const fails = runs.slice(0, 4).filter(r => r.status === 'fail').length;
-  const health = !last ? ['ยังไม่มีบันทึก', ''] : fails >= 2 || last.status === 'fail' ? ['มีปัญหา', 'bad'] : hrs > 36 ? ['บอทไม่ได้รันนาน', 'warn'] : (lastNew ? (Date.now() - Date.parse(lastNew.at)) / 864e5 : 0) > 4 ? [`รันปกติ แต่ไม่มี NAV ใหม่ ${Math.floor((Date.now() - Date.parse(lastNew.at)) / 864e5)} วัน`, 'warn'] : ['ทำงานปกติ', 'ok'];
+  const freshNew = lastNew && (Date.now() - Date.parse(lastNew.at)) / 864e5 <= 4;
+  const health = !last ? ['ยังไม่มีบันทึก', ''] : (fails >= 2 || last.status === 'fail') && freshNew ? ['บอทถูกบล็อก · อัปเดตด้วยมืออยู่', 'warn'] : fails >= 2 || last.status === 'fail' ? ['มีปัญหา', 'bad'] : hrs > 36 ? ['บอทไม่ได้รันนาน', 'warn'] : (lastNew ? (Date.now() - Date.parse(lastNew.at)) / 864e5 : 0) > 4 ? [`รันปกติ แต่ไม่มี NAV ใหม่ ${Math.floor((Date.now() - Date.parse(lastNew.at)) / 864e5)} วัน`, 'warn'] : ['ทำงานปกติ', 'ok'];
   const [showAll] = [S.navLogAll];
   const list = showAll ? runs.slice(0, 60) : runs.slice(0, 8);
   return `<div class="sec-h"><h2>อัปเดต NAV อัตโนมัติ</h2><span class="pill ${health[1]}">${health[0]}</span></div>
   <div class="card stack"><div class="note" style="margin:0">บอทดึง NAV จากเว็บ กบข. วันละ 2 รอบ (ราว 08:47 และ 19:47 น. แต่ GitHub อาจเริ่มช้ากว่านั้นได้หลายชั่วโมง) ${last ? `· รันล่าสุด ${fmt(last.at)}` : ''}${lastNew ? ` · ได้ NAV ใหม่ล่าสุดเมื่อ ${fmt(lastNew.at)} (NAV ${thd(lastNew.date, true)})` : ''}</div>
-    ${last?.status === 'fail' ? `<div class="banner" style="background:var(--down-soft)">${esc(last.msg || '')} ระหว่างนี้อัปเดตเองได้ด้วยปุ่ม "อัปเดต NAV จากเว็บ กบข." ด้านบน</div>` : ''}
-    ${runs.length ? `<div>${list.map(r => { const st = ST[r.status] || [r.status, '']; return `<div class="li"><div class="body"><div class="t" style="font-size:14px">${fmt(r.at)} <span class="pill ${st[1]}">${st[0]}</span>${r.flags?.length ? ' <span class="pill warn">มีข้อสังเกต</span>' : ''}</div><div class="s">${esc(r.msg || '')}</div></div></div>`; }).join('')}</div>
+    ${last?.status === 'fail' && !freshNew ? `<div class="banner" style="background:var(--down-soft)">${esc(last.msg || '')} ระหว่างนี้อัปเดตเองได้ด้วยปุ่ม "อัปเดต NAV จากเว็บ กบข." ด้านบน</div>` : ''}
+    ${runs.length ? `<div>${list.map(r => { const st = ST[r.status] || [r.status, '']; return `<div class="li"><div class="body"><div class="t" style="font-size:14px">${fmt(r.at)} <span class="pill ${st[1]}">${st[0]}</span>${r.flags?.length ? ' <span class="pill warn">มีข้อสังเกต</span>' : ''}${r.n > 1 ? ` <span class="note">×${r.n} รอบ ตั้งแต่ ${fmt(r.since || r.at)}</span>` : ''}</div><div class="s">${esc(r.msg || '')}</div></div></div>`; }).join('')}</div>
     ${runs.length > 8 ? `<button class="btn ghost" data-act="navlogall">${showAll ? 'ย่อ' : `ดูทั้งหมด (${Math.min(runs.length, 60)})`}</button>` : ''}` : '<p class="note" style="margin:0">ยังไม่มีบันทึกการรัน บอทจะเริ่มบันทึกผลในรอบถัดไป</p>'}
     <a class="note" href="https://github.com/blvckghozt-dot/gpf-journal/actions/workflows/update-nav.yml" target="_blank" rel="noopener">ดูการรันทั้งหมดบน GitHub ›</a></div>`;
 }
@@ -1343,8 +1345,9 @@ function sheetNav() {
     const show = () => { const v = validateNav(parsed); if (!v.length) { $('#navPrev').innerHTML = $('#navTxt').value.trim() ? '<div class="banner">ยังหาวันที่หรือราคาไม่เจอ ลองคัดลอกให้ครอบคลุมบรรทัด "วันที่ประกาศใช้" ด้วย</div>' : ''; return; }
       const fresh = v.filter(x => !x.same);
       $('#navPrev').innerHTML = `<div class="card stack"><b>3. ตรวจก่อนบันทึก</b>${v.slice(0, 12).map(x => `<div style="border-top:1px solid var(--line-2);padding-top:8px"><div class="row between"><b>${thd(x.d, true)}</b>${x.same ? '<span class="pill">มีอยู่แล้ว ข้อมูลตรงกัน</span>' : x.exists ? '<span class="pill warn">มีอยู่แล้ว ราคาต่างกัน จะแทนที่</span>' : '<span class="pill ok">ใหม่</span>'}</div><div class="note">${Object.keys(x.vals).length} แผน${x.vals[heldPlans()[0]] ? ` · ${esc(sh(heldPlans()[0]))} ${nf(x.vals[heldPlans()[0]], 4)}` : ''}</div>${x.flags.map(f => `<div class="pill warn" style="margin-top:4px">${esc(f)}</div>`).join(' ')}</div>`).join('')}${v.length > 12 ? `<p class="note">และอีก ${v.length - 12} วัน</p>` : ''}
+        ${GH && ghToken() ? `<label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="navPub" checked> เผยแพร่ให้ผู้ใช้ทุกคนด้วย (เฉพาะ NAV ไม่มีข้อมูลส่วนตัว)</label>` : ''}
         <button class="btn block" id="navSave" ${fresh.length ? '' : 'disabled'}>${fresh.length ? `บันทึก ${fresh.length} วัน` : 'ไม่มีข้อมูลใหม่'}</button></div>`;
-      $('#navSave')?.addEventListener('click', async () => { for (const x of fresh) await saveNav(x.d, {values: x.vals, source, flags: x.flags, savedAt: Date.now()}); closeSheet(); toast(`บันทึก NAV ${fresh.length} วันแล้ว`); });
+      $('#navSave')?.addEventListener('click', async () => { const pub = $('#navPub')?.checked; for (const x of fresh) await saveNav(x.d, {values: x.vals, source, flags: x.flags, savedAt: Date.now()}); closeSheet(); toast(`บันทึก NAV ${fresh.length} วันแล้ว`); if (pub) { toast('กำลังเผยแพร่ให้ผู้ใช้ทุกคน…'); await publishWithToast(fresh.map(x => ({d: x.d, vals: x.vals, flags: x.flags}))); } });
     };
     $('#navTxt').addEventListener('input', () => { source = 'gpf'; parsed = NavParse.parseNavText($('#navTxt').value); show(); });
     $('#navXls').addEventListener('change', async e => { try { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); parsed = {}; for (const f of e.target.files) { const wb = XLSX.read(await f.arrayBuffer(), {type: 'array', cellDates: false}); for (const n of wb.SheetNames) Object.assign(parsed, NavParse.parseNavRows(XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: true}))); } source = 'excel'; show(); } catch (err) { $('#navPrev').innerHTML = `<div class="banner">อ่านไฟล์ไม่สำเร็จ: ${esc(err.message || err)}</div>`; } });
@@ -1482,12 +1485,20 @@ function sheetSettings() {
     <div class="field"><label for="oomIn">อัตราออมเพิ่ม (% ของเงินเดือน)</label><input class="inp num" id="oomIn" type="number" min="0" max="27" step="1" value="${st.oomperm || 0}"><span class="hint">ใช้แสดงในหน้าแรกและข้อมูลอ้างอิง ไม่มีผลต่อการคำนวณ</span></div>
     <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
+    ${GH ? `<details class="card"><summary style="cursor:pointer"><b>ผู้ดูแลแอป: เผยแพร่ NAV ให้ทุกคน</b></summary><div class="stack" style="margin-top:8px">
+      <p class="note" style="margin:0">สำหรับเจ้าของ repo <b>${esc(GH.owner)}/${esc(GH.repo)}</b> เท่านั้น ใส่ GitHub token แล้ว NAV ที่คุณอัปเดตในเครื่องนี้จะถูกบันทึกขึ้น <code>data/nav.json</code> ให้ทุกคนที่ใช้ลิงก์นี้เห็นด้วย ส่งเฉพาะ NAV ไม่มีข้อมูลพอร์ต token เก็บในเบราว์เซอร์เครื่องนี้เท่านั้น และไม่อยู่ในไฟล์สำรอง</p>
+      <ol class="guide" style="margin:0"><li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token</li><li>Repository access: <b>Only select repositories</b> → เลือก ${esc(GH.repo)}</li><li>Permissions → Repository → <b>Contents: Read and write</b> (อย่างอื่นไม่ต้อง) ตั้งวันหมดอายุตามสะดวก</li><li>คัดลอก token มาวางด้านล่าง</li></ol>
+      <input class="inp mono" id="ghTok" type="password" autocomplete="off" placeholder="github_pat_…" value="${ghToken() ? '••••••••' : ''}">
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="ghTokSave">บันทึกและทดสอบ</button>${ghToken() ? '<button class="btn danger" id="ghTokDel">ลบ token</button>' : ''}</div><div id="ghTokRes" class="note"></div></div></details>` : ''}
     <button class="btn block" id="setSave">บันทึก</button>
     <div class="card stack"><b>ล้างข้อมูลพอร์ต</b><p class="note" style="margin:0">ลบรายการจาก PDF ยอดยกมา และรายการที่บันทึกเอง เพื่อนำเข้าไฟล์ใหม่ทั้งหมด การตั้งค่าและ NAV ยังอยู่ ควรสำรองข้อมูลก่อน</p><button class="btn danger" id="clearBtn">ล้างข้อมูลพอร์ต</button></div>
     <p class="note">GPF Journal ใช้ข้อมูลจากใบแจ้งยอดของคุณและ NAV ที่ กบข. เผยแพร่ ตัวเลขทางการให้ยึดตามแอป My GPF</p></div>`, b => {
     b.querySelectorAll('[data-theme-set]').forEach(x => x.addEventListener('click', () => { st.theme = x.dataset.themeSet; applyTheme(); b.querySelectorAll('[data-theme-set]').forEach(y => y.setAttribute('aria-pressed', y === x)); }));
     $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; { const y = +$('#retIn').value; st.retireYear = y >= curYearBE() && y <= curYearBE() + 45 ? y : null; } await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
     $('#bkOut').addEventListener('click', doBackup);
+    $('#ghTokSave')?.addEventListener('click', async () => { const v = $('#ghTok').value.trim(); if (v && !v.startsWith('••')) store.set('ghToken', v); if (!ghToken()) { $('#ghTokRes').textContent = 'ยังไม่ได้ใส่ token'; return; } $('#ghTokRes').textContent = 'กำลังทดสอบ…';
+      try { const r = await ghApi(''); if (!r.permissions?.push) throw new Error('token ไม่มีสิทธิ์เขียน repo นี้'); $('#ghTokRes').innerHTML = '<span class="pill ok">ใช้ได้</span> ต่อไปเมื่ออัปเดต NAV จะมีตัวเลือกเผยแพร่ให้ทุกคน'; render(); } catch (e) { store.set('ghToken', ''); $('#ghTokRes').innerHTML = `<span class="pill bad">ใช้ไม่ได้</span> ${esc(e.message || e)}`; } });
+    $('#ghTokDel')?.addEventListener('click', () => { store.set('ghToken', ''); closeSheet(); toast('ลบ token แล้ว'); render(); });
     $('#clearBtn').addEventListener('click', async e => { const bt = e.currentTarget; if (bt.dataset.confirm !== '1') { bt.dataset.confirm = '1'; bt.textContent = 'แตะอีกครั้งเพื่อยืนยันการลบ'; setTimeout(() => { if (bt.isConnected) { bt.dataset.confirm = ''; bt.textContent = 'ล้างข้อมูลพอร์ต'; } }, 4000); return; } await clearData(); closeSheet(); S.tab = 'home'; render(); toast('ล้างข้อมูลแล้ว นำเข้า PDF ใหม่ได้เลย'); });
     $('#bkIn').addEventListener('change', e => restoreBackup(e.target.files[0]));
   });
@@ -1509,6 +1520,35 @@ function enqueue(fn) { return new Promise((res) => { q.push(async () => { try { 
 async function run() { if (qBusy) return; qBusy = true; while (q.length) await q.shift()(); qBusy = false; }
 async function saveUser() { const u = stripUser(S.user); store.set('user', u); recompute(); if (DB) await enqueue(() => DB.doc('p/user').set(u)); }
 async function saveLedger(L) { S.ledger = L; store.set('ledger', L); recompute(); if (DB) await enqueue(() => DB.doc('p/ledger').set(L)); }
+/* ---------- เผยแพร่ NAV ให้ผู้ใช้ทุกคน (เจ้าของแอปเท่านั้น ใช้ GitHub token ที่เก็บในเครื่องนี้) ---------- */
+const GH = (() => { const o = location.hostname.match(/^([^.]+)\.github\.io$/i)?.[1]; const r = location.pathname.split('/').filter(Boolean)[0]; return o && r ? {owner: o, repo: r} : null; })();
+const ghToken = () => store.get('ghToken', '');
+const b64dec = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\s/g, '')), c => c.charCodeAt(0)));
+const b64enc = t => { const u = new TextEncoder().encode(t); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+async function ghApi(path, opt = {}) {
+  const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}${path ? '/' + path : ''}`, {...opt, headers: {Accept: 'application/vnd.github+json', Authorization: `Bearer ${ghToken()}`, 'X-GitHub-Api-Version': '2022-11-28', ...(opt.headers || {})}});
+  if (!r.ok) { const e = new Error(r.status === 401 ? 'token ไม่ถูกต้องหรือหมดอายุ' : r.status === 403 || r.status === 404 ? 'token ไม่มีสิทธิ์เขียน repo นี้' : `GitHub ตอบกลับ ${r.status}`); e.status = r.status; throw e; }
+  return r.json();
+}
+async function ghUpdateJson(file, fn, message) { // อ่าน → แก้ → เขียนกลับ (ลองใหม่ถ้ามีคนแก้ไฟล์พร้อมกัน)
+  for (let i = 0; i < 3; i++) {
+    let cur = null, sha; try { const g = await ghApi(`contents/${file}?ref=main&t=${Date.now()}`); sha = g.sha; cur = JSON.parse(b64dec(g.content)); } catch (e) { if (e.status !== 404) throw e; }
+    const next = fn(cur);
+    try { return await ghApi(`contents/${file}`, {method: 'PUT', body: JSON.stringify({message, content: b64enc(JSON.stringify(next, null, 1)), sha, branch: 'main'})}); } catch (e) { if (e.status !== 409 && e.status !== 422) throw e; }
+  }
+  throw new Error('มีการแก้ไฟล์พร้อมกัน ลองใหม่อีกครั้ง');
+}
+async function publishNav(list) { // list [{d, vals, flags}]
+  if (!GH || !ghToken() || !list.length) return 0;
+  const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z'); const ds = list.map(x => x.d).sort();
+  await ghUpdateJson('data/nav.json', cur => { const data = cur || {nav: {}}; data.nav ||= {}; for (const x of list) data.nav[x.d] = {values: x.vals, flags: x.flags || [], fetchedAt: at, src: 'manual'}; data.nav = Object.fromEntries(Object.entries(data.nav).sort((a, b) => a[0].localeCompare(b[0]))); data.updatedAt = at; return data; }, `NAV ${ds[ds.length - 1]} (อัปเดตด้วยมือ)`);
+  const logEntry = {at, status: 'manual', date: ds[ds.length - 1], plans: Object.keys(list[list.length - 1].vals).length, msg: `เจ้าของแอปเผยแพร่ NAV ${ds.length > 1 ? `${ds.length} วัน (${ds[0]} ถึง ${ds[ds.length - 1]})` : `วันที่ ${ds[0]}`} ให้ผู้ใช้ทุกคน`}; S.navLog = [logEntry, ...(S.navLog || [])];
+  try { await ghUpdateJson('data/nav-log.json', cur => { const runs = cur?.runs || []; return {runs: [{at, status: 'manual', date: ds[ds.length - 1], plans: Object.keys(list[list.length - 1].vals).length, msg: `เจ้าของแอปเผยแพร่ NAV ${ds.length > 1 ? `${ds.length} วัน (${ds[0]} ถึง ${ds[ds.length - 1]})` : `วันที่ ${ds[0]}`} ให้ผู้ใช้ทุกคน`}, ...runs].slice(0, 200)}; }, 'NAV log (อัปเดตด้วยมือ)'); } catch (e) { console.warn(e); }
+  for (const x of list) S.navFile[x.d] = {values: x.vals, flags: x.flags || [], fetchedAt: at, src: 'manual'}; store.set('navFile', S.navFile);
+  return list.length;
+}
+const unpublishedNav = () => Object.entries(S.navDb).filter(([d, doc]) => doc?.values && JSON.stringify(S.navFile?.[d]?.values) !== JSON.stringify(doc.values)).map(([d, doc]) => ({d, vals: doc.values, flags: doc.flags || []}));
+async function publishWithToast(list) { try { const n = await publishNav(list); if (n) toast(`เผยแพร่ NAV ${n} วันให้ทุกคนแล้ว · มีผลในราว 1–2 นาที`); render(); } catch (e) { toast('เผยแพร่ไม่สำเร็จ: ' + (e.message || e)); } }
 async function saveNav(d, doc) { S.navDb[d] = doc; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).set({date: d, ...doc})); }
 async function deleteNav(d) { delete S.navDb[d]; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).delete()); }
 async function loadFeeds() {
@@ -1548,6 +1588,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.frange) { S.fundRange = b.dataset.frange; render(); return; }
   if (b.dataset.fsel) { const p = b.dataset.fsel; const i = S.fundSel.indexOf(p); if (i >= 0) { if (S.fundSel.length > 1) S.fundSel.splice(i, 1); } else if (S.fundSel.length < 6) S.fundSel.push(p); else toast('เลือกได้สูงสุด 6 แผน'); render(); return; }
   if (b.dataset.nf) { S.newsFilter = b.dataset.nf; render(); return; }
+  if (b.dataset.act === 'navpublish') { b.disabled = true; b.textContent = 'กำลังเผยแพร่…'; publishWithToast(unpublishedNav()); return; }
   if (b.dataset.act === 'navlogall') { S.navLogAll = !S.navLogAll; render(); return; }
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
