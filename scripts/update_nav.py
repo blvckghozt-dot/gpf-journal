@@ -76,10 +76,13 @@ def main():
     text = to_text(raw)
     date, vals = parse(text)
     if not date or len(vals) < 8:
-        msg = f'อ่าน NAV ไม่ได้ (วันที่={date}, พบ {len(vals)} แผน, หน้าเว็บยาว {len(text)} ตัวอักษร) เว็บ กบข. อาจเปลี่ยนรูปแบบ'
+        if 'Incapsula' in raw or len(text) < 300:
+            msg = 'เว็บ กบข. ไม่ให้บอทดึงข้อมูล (ระบบป้องกันบอทตอบกลับแทนหน้า NAV) ต้องอัปเดต NAV ด้วยมือในแอปไปก่อน'
+        else:
+            msg = f'อ่าน NAV ไม่ได้ (วันที่={date}, พบ {len(vals)} แผน, หน้าเว็บยาว {len(text)} ตัวอักษร) เว็บ กบข. อาจเปลี่ยนรูปแบบ'
         print(msg)
         if log:
-            write_log({'status': 'fail', 'date': date, 'plans': len(vals), 'msg': msg, **info, 'snippet': raw[:600]})
+            write_log({'status': 'fail', 'date': date, 'plans': len(vals), 'msg': msg, **info, 'snippet': raw[:200]})
         sys.exit(1)
     data = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {'nav': {}}
     nav = data.setdefault('nav', {})
