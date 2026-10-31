@@ -209,6 +209,7 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .news:first-child{border-top:0}
 .news .t{font-weight:600;line-height:1.4}
 .news p{margin:4px 0 6px;font-size:13.5px;color:var(--ink-2)}
+.outlook summary::-webkit-details-marker{display:none}
 .asset{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line-2);font-size:14px}
 .asset:first-child{border-top:0}
 
@@ -542,6 +543,7 @@ const S = {
   user: store.get('user', {entries: [], checks: [], settings: {oomperm: 0, theme: 'system'}}),
   navDb: store.get('navDb', {}), navFile: store.get('navFile', {}),                // date -> {values, source, savedAt}
   news: store.get('news', []),
+  digest: store.get('digest', null), outlook: store.get('outlook', []),
   mode: 'loading',                              // loading | db | local
   isOwner: true,
   tab: 'home', asOf: null, range: '1Y', histSeg: 'eras', fundPeriod: '1Y', fundSel: null, fundRange: '1Y', newsFilter: 'mine', txYear: null,
@@ -1202,7 +1204,17 @@ function renderNews() {
   const mine = items.filter(n => (n.plans || []).some(p => held.includes(p)));
   const list = S.newsFilter === 'mine' && mine.length ? mine : items;
   const r1m = fundRanks('1M'), rytd = fundRanks('YTD');
-  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ภาพรวมสินทรัพย์</h2><span class="note">จาก NAV ${thd(lastD)}</span></div>
+  const LEAN = {up: ['โน้มขึ้น', 'ok'], flat: ['ทรงตัว', ''], down: ['ระวังปรับลง', 'bad'], vol: ['ผันผวน', 'warn']};
+  const dg = S.digest; const age = dg?.asOf ? d2t(todayD()) - d2t(dg.asOf) : 0;
+  const digestHtml = dg ? `<div class="sec-h" style="margin-top:12px"><h2>สรุปข่าวสำคัญ</h2><span class="note">ณ ${thd(dg.asOf)}${age > 14 ? ' · <span class="pill warn">ข้อมูลเก่า ' + age + ' วัน</span>' : ''}</span></div>
+  <div class="card stack"><div style="font-weight:600;line-height:1.45">${esc(dg.headline || '')}</div>
+    ${(dg.points || []).map(x => `<div class="li"><div class="body"><div class="t">${esc(x.t)} ${(x.assets || []).map(a => `<span class="pill">${esc(a)}</span>`).join(' ')}</div><div class="s">${esc(x.s)}</div></div></div>`).join('')}</div>` : '';
+  const ol = [...(S.outlook || [])].sort((a, b) => (held.includes(b.plan) ? 1 : 0) - (held.includes(a.plan) ? 1 : 0));
+  const outlookHtml = ol.length ? `<div class="sec-h"><h2>แนวโน้มรายแผน</h2><span class="note">ภาพรวม 1–3 เดือน</span></div>
+  <div class="card">${ol.map(o => { const lean = LEAN[o.lean] || LEAN.flat; const x1 = r1m.find(r => r.p === o.plan); return `<details class="outlook"><summary style="cursor:pointer;list-style:none;padding:10px 0"><div class="row between" style="gap:8px;align-items:flex-start"><span><b style="font-weight:600">${esc(sh(o.plan))}</b>${held.includes(o.plan) ? ' <span class="pill acc">ถืออยู่</span>' : ''}<br><span class="note">${esc(o.txt || '')}</span></span><span style="text-align:right;flex:none"><span class="pill ${lean[1]}">${lean[0]}</span>${x1 ? `<br><span class="note num ${cls(x1.r)}">1 ด. ${pct(x1.r, 1)}</span>` : ''}</span></div></summary>
+    <div class="stack" style="padding:0 0 12px;font-size:13.5px"><div><b class="up">ปัจจัยหนุน</b><ul class="guide" style="margin:4px 0 0">${(o.up || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div><div><b class="down">ปัจจัยกดดัน</b><ul class="guide" style="margin:4px 0 0">${(o.down || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div></div></details>`; }).join('<hr style="border:0;border-top:1px solid var(--line-2);margin:0">')}
+    <p class="note" style="margin:8px 0 0">เป็นการประเมินสถานการณ์จากข่าวข้างต้น ไม่ใช่การคาดการณ์ราคาหรือคำแนะนำการลงทุน ผลตอบแทนในอดีตไม่รับประกันอนาคต</p></div>` : '';
+  el.innerHTML = `${digestHtml}${outlookHtml}<div class="sec-h" style="margin-top:12px"><h2>ภาพรวมสินทรัพย์</h2><span class="note">จาก NAV ${thd(lastD)}</span></div>
   <div class="card"><div class="asset" style="font-size:12px;color:var(--muted);padding-top:0"><span>กลุ่ม / แผนตัวแทน</span><span>1 เดือน</span><span>ต้นปี</span></div>
   ${ASSETS.map(a => { const p = a.plans.find(x => held.includes(x) && NAV[x]) || a.plans.find(x => NAV[x]); if (!p) return ''; const x1 = r1m.find(r => r.p === p), xy = rytd.find(r => r.p === p); const h = held.includes(p); return `<div class="asset"><span><b style="font-weight:600">${a.key}</b>${h ? ' <span class="pill acc">ถืออยู่</span>' : ''}<br><span class="note">แผน${esc(sh(p))}</span></span><span class="num ${x1 ? cls(x1.r) : ''}" style="text-align:right;font-weight:600">${x1 ? pct(x1.r, 1) : '—'}</span><span class="num ${xy ? cls(xy.r) : ''}" style="text-align:right;font-weight:600">${xy ? pct(xy.r, 1) : '—'}</span></div>`; }).join('')}</div>
   <div class="sec-h"><h2>ข่าวที่เกี่ยวข้อง</h2>${mine.length ? `<div class="seg" style="flex:none"><button data-nf="mine" aria-pressed="${S.newsFilter === 'mine'}">แผนของฉัน</button><button data-nf="all" aria-pressed="${S.newsFilter !== 'mine'}">ทั้งหมด</button></div>` : ''}</div>
@@ -1484,7 +1496,7 @@ async function saveNav(d, doc) { S.navDb[d] = doc; store.set('navDb', S.navDb); 
 async function deleteNav(d) { delete S.navDb[d]; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).delete()); }
 async function loadFeeds() {
   try { const r = await fetch('data/nav.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.navFile = j.nav || j; store.set('navFile', S.navFile); S.feedAt = j.updatedAt || null; } } catch {}
-  try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); store.set('news', S.news); } } catch {}
+  try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); S.digest = Array.isArray(j) ? null : (j.digest || null); S.outlook = Array.isArray(j) ? [] : (j.outlook || []); store.set('news', S.news); store.set('digest', S.digest); store.set('outlook', S.outlook); } } catch {}
 }
 async function initDb() {
   if (SA) { S.mode = 'standalone'; try { navigator.storage?.persist?.(); } catch {} await loadFeeds(); recompute(); return; }
