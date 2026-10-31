@@ -1232,6 +1232,7 @@ function renderRecord() {
   el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ข้อมูล NAV</h2><span class="pill ${daysOld <= 5 ? 'ok' : 'warn'}">${daysOld <= 5 ? 'เป็นปัจจุบัน' : `ผ่านมา ${daysOld} วัน`}</span></div>
   <div class="card stack"><div class="row between"><div><div class="eyebrow">NAV ล่าสุดในแอป</div><b style="font-family:var(--f-display);font-size:18px">${thd(lastD, true)}</b><div class="note">${ld ? `${{gpf: 'ดึงจากเว็บ กบข.', auto: 'อัปเดตอัตโนมัติ', manual: 'วางข้อความ', excel: 'นำเข้า Excel'}[ld.source] || ld.source}${ld.savedAt ? ' · บันทึก ' + new Date(ld.savedAt).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short'}) : ''}` : 'ข้อมูลตั้งต้นจากไฟล์ Excel ของ กบข.'}</div></div></div>
     <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button></div>
+  ${navLogCard()}
   <div class="sec-h"><h2>บันทึกรายการ</h2></div>
   <div class="stack">
     ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
@@ -1245,6 +1246,22 @@ function renderRecord() {
   <div class="card">${ents.length ? ents.map(e => `<div class="li"><div class="ic ${e.type === 'switch' ? 'sw' : 'in'}">${e.type === 'switch' ? '⇄' : e.type === 'units' ? '±' : '+'}</div><div class="body"><div class="t">${e.type === 'contrib' ? 'เงินนำส่ง ' + moneyN(e.amount) : e.type === 'switch' ? 'เปลี่ยนแผน → ' + esc(Object.keys(e.to || {}).map(sh).join(' + ')) : 'ปรับหน่วยให้ตรง My GPF'} ${stt[e._status] || ''} ${e._est && e._status === 'ok' ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(e.date, true)}${e._rows?.length ? ' · ' + e._rows.map(r => `${sh(r.plan)} ${r.units > 0 ? '+' : ''}${nf(r.units, 4)} หน่วย`).join(', ') : ''}</div></div><button class="btn ghost" data-del="${e.id}" aria-label="ลบรายการ">ลบ</button></div>`).join('') : '<p class="note" style="margin:0">เดือนที่ยังไม่มีใน PDF ให้บันทึกที่นี่ เมื่อนำเข้า PDF ปีใหม่ แอปจะใช้ตัวเลขจาก PDF แทนอัตโนมัติ</p>'}</div>
   <div class="sec-h"><h2>ประวัติ NAV ที่บันทึก</h2></div>
   <div class="card">${Object.keys(S.navDb).length ? Object.entries(S.navDb).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30).map(([d, doc]) => `<div class="li"><div class="body"><div class="t">${thd(d, true)} <span class="pill">${esc({gpf: 'เว็บ กบข.', auto: 'อัตโนมัติ', manual: 'วางข้อความ', excel: 'Excel'}[doc.source] || doc.source)}</span>${doc.flags?.length ? ' <span class="pill warn">ตรวจแล้วมีข้อสังเกต</span>' : ''}</div><div class="s">${Object.keys(doc.values || {}).length} แผน${doc.values?.[heldPlans()[0]] ? ` · ${esc(sh(heldPlans()[0]))} ${nf(doc.values[heldPlans()[0]], 4)}` : ''}</div></div>${S.isOwner ? `<button class="btn ghost" data-delnav="${d}">ลบ</button>` : ''}</div>`).join('') : '<p class="note" style="margin:0">ยังไม่มี NAV ที่บันทึกเพิ่ม ข้อมูลตั้งต้นมาจากไฟล์ Excel ของ กบข. (ถึง 9 ต.ค. 2569)</p>'}</div>`;
+}
+function navLogCard() {
+  if (!SA && !S.navLog) return '';
+  const runs = S.navLog || []; const fmt = iso => new Date(iso).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok'});
+  const ST = {new: ['ได้ NAV ใหม่', 'ok'], same: ['ไม่มีข้อมูลใหม่', ''], fail: ['ล้มเหลว', 'bad']};
+  const last = runs[0], lastNew = runs.find(r => r.status === 'new'); const hrs = last ? (Date.now() - Date.parse(last.at)) / 36e5 : null;
+  const fails = runs.slice(0, 4).filter(r => r.status === 'fail').length;
+  const health = !last ? ['ยังไม่มีบันทึก', ''] : fails >= 2 || last.status === 'fail' ? ['มีปัญหา', 'bad'] : hrs > 36 ? ['บอทไม่ได้รันนาน', 'warn'] : (lastNew ? (Date.now() - Date.parse(lastNew.at)) / 864e5 : 0) > 4 ? [`รันปกติ แต่ไม่มี NAV ใหม่ ${Math.floor((Date.now() - Date.parse(lastNew.at)) / 864e5)} วัน`, 'warn'] : ['ทำงานปกติ', 'ok'];
+  const [showAll] = [S.navLogAll];
+  const list = showAll ? runs.slice(0, 60) : runs.slice(0, 8);
+  return `<div class="sec-h"><h2>อัปเดต NAV อัตโนมัติ</h2><span class="pill ${health[1]}">${health[0]}</span></div>
+  <div class="card stack"><div class="note" style="margin:0">บอทดึง NAV จากเว็บ กบข. วันละ 2 รอบ (ราว 08:47 และ 19:47 น. แต่ GitHub อาจเริ่มช้ากว่านั้นได้หลายชั่วโมง) ${last ? `· รันล่าสุด ${fmt(last.at)}` : ''}${lastNew ? ` · ได้ NAV ใหม่ล่าสุดเมื่อ ${fmt(lastNew.at)} (NAV ${thd(lastNew.date, true)})` : ''}</div>
+    ${last?.status === 'fail' ? `<div class="banner" style="background:var(--down-soft)">${esc(last.msg || '')} ระหว่างนี้อัปเดตเองได้ด้วยปุ่ม "อัปเดต NAV จากเว็บ กบข." ด้านบน</div>` : ''}
+    ${runs.length ? `<div>${list.map(r => { const st = ST[r.status] || [r.status, '']; return `<div class="li"><div class="body"><div class="t" style="font-size:14px">${fmt(r.at)} <span class="pill ${st[1]}">${st[0]}</span>${r.flags?.length ? ' <span class="pill warn">มีข้อสังเกต</span>' : ''}</div><div class="s">${esc(r.msg || '')}</div></div></div>`; }).join('')}</div>
+    ${runs.length > 8 ? `<button class="btn ghost" data-act="navlogall">${showAll ? 'ย่อ' : `ดูทั้งหมด (${Math.min(runs.length, 60)})`}</button>` : ''}` : '<p class="note" style="margin:0">ยังไม่มีบันทึกการรัน บอทจะเริ่มบันทึกผลในรอบถัดไป</p>'}
+    <a class="note" href="https://github.com/blvckghozt-dot/gpf-journal/actions/workflows/update-nav.yml" target="_blank" rel="noopener">ดูการรันทั้งหมดบน GitHub ›</a></div>`;
 }
 const toolBtn = (act, t, s, path) => `<button class="tool" data-act="${act}"><span class="ti"><svg viewBox="0 0 24 24">${path}</svg></span><span style="min-width:0"><b>${t}</b><span>${esc(s)}</span></span><span class="chev">›</span></button>`;
 
@@ -1496,6 +1513,7 @@ async function saveNav(d, doc) { S.navDb[d] = doc; store.set('navDb', S.navDb); 
 async function deleteNav(d) { delete S.navDb[d]; store.set('navDb', S.navDb); recompute(); if (DB) await enqueue(() => DB.collection('nav').doc(d).delete()); }
 async function loadFeeds() {
   try { const r = await fetch('data/nav.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.navFile = j.nav || j; store.set('navFile', S.navFile); S.feedAt = j.updatedAt || null; } } catch {}
+  try { const r = await fetch('data/nav-log.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.navLog = j.runs || []; } } catch {}
   try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); S.digest = Array.isArray(j) ? null : (j.digest || null); S.outlook = Array.isArray(j) ? [] : (j.outlook || []); store.set('news', S.news); store.set('digest', S.digest); store.set('outlook', S.outlook); } } catch {}
 }
 async function initDb() {
@@ -1530,6 +1548,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.frange) { S.fundRange = b.dataset.frange; render(); return; }
   if (b.dataset.fsel) { const p = b.dataset.fsel; const i = S.fundSel.indexOf(p); if (i >= 0) { if (S.fundSel.length > 1) S.fundSel.splice(i, 1); } else if (S.fundSel.length < 6) S.fundSel.push(p); else toast('เลือกได้สูงสุด 6 แผน'); render(); return; }
   if (b.dataset.nf) { S.newsFilter = b.dataset.nf; render(); return; }
+  if (b.dataset.act === 'navlogall') { S.navLogAll = !S.navLogAll; render(); return; }
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;

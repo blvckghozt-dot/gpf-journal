@@ -35,21 +35,56 @@ def parse(text: str):
     return date, vals
 
 
+LOG = OUT.parent / 'nav-log.json'
+LOG_MAX = 200
+
+
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def write_log(entry):
+    """บันทึกผลการรันทุกครั้งลง data/nav-log.json (ใหม่สุดอยู่บน) เพื่อแสดงในหน้า "บันทึก" ของแอป"""
+    try:
+        runs = json.loads(LOG.read_text(encoding='utf-8')).get('runs', []) if LOG.exists() else []
+    except Exception:
+        runs = []
+    entry = {'at': now_utc(), **entry}
+    runs = [entry] + runs
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    LOG.write_text(json.dumps({'runs': runs[:LOG_MAX]}, ensure_ascii=False, indent=1), encoding='utf-8')
+
+
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else None
-    if src:
-        raw = open(src, encoding='utf-8').read()
-    else:
-        req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (GPF Journal NAV updater)'})
-        raw = urllib.request.urlopen(req, timeout=60).read().decode('utf-8', 'replace')
-    date, vals = parse(to_text(raw))
+    log = src is None  # บันทึก log เฉพาะตอนรันจริงบน GitHub Actions
+    try:
+        if src:
+            raw = open(src, encoding='utf-8').read()
+        else:
+            req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (GPF Journal NAV updater)'})
+            raw = urllib.request.urlopen(req, timeout=60).read().decode('utf-8', 'replace')
+    except Exception as e:  # เว็บล่ม บล็อก หรือหมดเวลา
+        msg = f'ดึงหน้าเว็บ กบข. ไม่สำเร็จ: {type(e).__name__}: {e}'[:300]
+        print(msg)
+        if log:
+            write_log({'status': 'fail', 'msg': msg})
+        sys.exit(1)
+    text = to_text(raw)
+    date, vals = parse(text)
     if not date or len(vals) < 8:
-        print(f'อ่าน NAV ไม่ได้ (date={date}, plans={len(vals)})')
-        sys.exit(0 if src is None else 1)
+        msg = f'อ่าน NAV ไม่ได้ (วันที่={date}, พบ {len(vals)} แผน, หน้าเว็บยาว {len(text)} ตัวอักษร) เว็บ กบข. อาจเปลี่ยนรูปแบบ'
+        print(msg)
+        if log:
+            write_log({'status': 'fail', 'date': date, 'plans': len(vals), 'msg': msg})
+        sys.exit(1)
     data = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {'nav': {}}
     nav = data.setdefault('nav', {})
     if nav.get(date, {}).get('values') == vals:
-        print(f'ไม่มีข้อมูลใหม่ ({date})')
+        msg = f'ไม่มีข้อมูลใหม่ หน้าเว็บ กบข. ยังแสดง NAV วันที่ {date}'
+        print(msg)
+        if log:
+            write_log({'status': 'same', 'date': date, 'plans': len(vals), 'msg': msg})
         return
     flags = []
     prev = [k for k in sorted(nav) if k < date]
@@ -61,12 +96,15 @@ def main():
         missing = [p for p in pv if p not in vals]
         if missing:
             flags.append('ไม่พบ ' + ', '.join(missing))
-    nav[date] = {'values': vals, 'flags': flags, 'fetchedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
+    nav[date] = {'values': vals, 'flags': flags, 'fetchedAt': now_utc()}
     data['nav'] = dict(sorted(nav.items()))
     data['updatedAt'] = nav[date]['fetchedAt']
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding='utf-8')
-    print(f'บันทึก NAV {date} {len(vals)} แผน' + (f' (ข้อสังเกต: {flags})' if flags else ''))
+    msg = f'บันทึก NAV วันที่ {date} {len(vals)} แผน' + (f' (ข้อสังเกต: {"; ".join(flags)})' if flags else '')
+    print(msg)
+    if log:
+        write_log({'status': 'new', 'date': date, 'plans': len(vals), 'flags': flags, 'msg': msg})
 
 
 if __name__ == '__main__':

@@ -1,11 +1,14 @@
 name: อัปเดต NAV จาก กบข.
 on:
   schedule:
-    - cron: '47 1 * * *'    # 08:47 เวลาไทย
+    - cron: '47 1 * * *'    # 08:47 เวลาไทย (GitHub อาจเริ่มช้ากว่านี้ได้หลายชั่วโมง)
     - cron: '47 12 * * *'   # 19:47 เวลาไทย
   workflow_dispatch: {}
 permissions:
   contents: write
+concurrency:
+  group: update-nav
+  cancel-in-progress: false
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -15,15 +18,19 @@ jobs:
         with:
           python-version: '3.12'
       - name: ดึง NAV
+        id: fetch
         run: python scripts/update_nav.py
-      - name: บันทึกถ้ามีข้อมูลใหม่
+      # บันทึกทั้ง NAV ใหม่และ log ผลการรัน แม้ขั้นตอนดึง NAV จะล้มเหลว (เพื่อให้แอปแสดงสาเหตุได้)
+      - name: บันทึกผล
+        if: always()
         run: |
           if [ -n "$(git status --porcelain data)" ]; then
             git config user.name "gpf-nav-bot"
             git config user.email "gpf-nav-bot@users.noreply.github.com"
-            git add data/nav.json
-            git commit -m "NAV $(date -u +%Y-%m-%d)"
-            git push
+            git add data/nav.json data/nav-log.json
+            if git diff --cached --quiet -- data/nav.json; then msg="NAV log $(date -u +%Y-%m-%dT%H:%MZ)"; else msg="NAV $(date -u +%Y-%m-%d)"; fi
+            git commit -m "$msg"
+            for i in 1 2 3; do git pull --rebase -q origin "${GITHUB_REF_NAME}" && git push && break; sleep 5; done
           else
-            echo "ไม่มีข้อมูลใหม่"
+            echo "ไม่มีการเปลี่ยนแปลง"
           fi
