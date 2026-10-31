@@ -58,12 +58,15 @@ def write_log(entry):
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else None
     log = src is None  # บันทึก log เฉพาะตอนรันจริงบน GitHub Actions
+    info = {}
     try:
         if src:
             raw = open(src, encoding='utf-8').read()
         else:
             req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (GPF Journal NAV updater)'})
-            raw = urllib.request.urlopen(req, timeout=60).read().decode('utf-8', 'replace')
+            resp = urllib.request.urlopen(req, timeout=60)
+            raw = resp.read().decode('utf-8', 'replace')
+            info = {'http': resp.status, 'final': resp.geturl()}
     except Exception as e:  # เว็บล่ม บล็อก หรือหมดเวลา
         msg = f'ดึงหน้าเว็บ กบข. ไม่สำเร็จ: {type(e).__name__}: {e}'[:300]
         print(msg)
@@ -76,7 +79,7 @@ def main():
         msg = f'อ่าน NAV ไม่ได้ (วันที่={date}, พบ {len(vals)} แผน, หน้าเว็บยาว {len(text)} ตัวอักษร) เว็บ กบข. อาจเปลี่ยนรูปแบบ'
         print(msg)
         if log:
-            write_log({'status': 'fail', 'date': date, 'plans': len(vals), 'msg': msg})
+            write_log({'status': 'fail', 'date': date, 'plans': len(vals), 'msg': msg, **info, 'snippet': raw[:600]})
         sys.exit(1)
     data = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {'nav': {}}
     nav = data.setdefault('nav', {})
