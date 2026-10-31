@@ -86,15 +86,30 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select is_admin from public.members where id = auth.uid()), false)
 $$;
 
--- ยอดที่ต้องโอน = ราคาแพ็กเกจ + เศษ 1–99 สตางค์ที่คงที่สำหรับแต่ละคน
+-- ยอดที่ต้องโอน = ราคาแพ็กเกจ + เศษ 1–99 สตางค์แบบสุ่ม (เลี่ยงเศษที่คนอื่นกำลังใช้อยู่)
+-- เก็บไว้ 7 วัน เปิดหน้าต่ออายุซ้ำจะได้ยอดเดิม ล้างทิ้งเมื่อผู้ดูแลอนุมัติ/ปฏิเสธ เพื่อสุ่มใหม่รอบหน้า
+alter table public.members add column if not exists quote_plan text;
+alter table public.members add column if not exists quote_amount numeric(10,2);
+alter table public.members add column if not exists quote_at timestamptz;
+
+drop function if exists public.payment_quote(text);
 create or replace function public.payment_quote(p_plan text) returns numeric
-language plpgsql stable security definer set search_path = public as $$
-declare base numeric;
+language plpgsql volatile security definer set search_path = public as $$
+declare uid uuid := auth.uid(); base numeric; m public.members; c int; used int[];
 begin
-  if auth.uid() is null then raise exception 'not_logged_in'; end if;
+  if uid is null then raise exception 'not_logged_in'; end if;
   select amount into base from public.plan_info(p_plan);
   if base is null then raise exception 'bad_plan'; end if;
-  return round(base + ((abs(hashtext(auth.uid()::text)) % 99) + 1) / 100.0, 2);
+  select * into m from public.members where id = uid for update;
+  if not found then raise exception 'no_member'; end if;
+  if m.quote_plan = p_plan and m.quote_amount is not null and m.quote_at > now() - interval '7 days' then return m.quote_amount; end if;
+  select array_agg(round((x.amount - base) * 100)::int) into used from (
+    select quote_amount as amount from public.members where id <> uid and quote_plan = p_plan and quote_at > now() - interval '7 days'
+    union all select amount from public.slip_requests where status = 'pending' and plan = p_plan) x;
+  select n into c from generate_series(1, 99) n where not (n = any(coalesce(used, '{}'))) order by random() limit 1;
+  if c is null then c := 1 + floor(random() * 99)::int; end if; -- ถ้าเศษถูกใช้หมดทุกค่า ยอมให้ซ้ำได้
+  update public.members set quote_plan = p_plan, quote_amount = base + c / 100.0, quote_at = now() where id = uid;
+  return round(base + c / 100.0, 2);
 end $$;
 
 create or replace function public.submit_slip(p_plan text, p_image text) returns json
@@ -155,9 +170,11 @@ begin
     newexp := (case when untouched then greatest(r.prev_expires_at, r.created_at) else greatest(cur, r.created_at) end) + make_interval(days => r.days);
     update public.members set expires_at = newexp, plan = r.plan where id = r.user_id;
     update public.slip_requests set status = 'approved', decided_at = now(), note = p_note, image = null where id = p_id;
+    update public.members set quote_plan = null, quote_amount = null, quote_at = null where id = r.user_id;
   else
     if untouched then update public.members set expires_at = r.prev_expires_at where id = r.user_id; end if;
     update public.slip_requests set status = 'rejected', decided_at = now(), note = p_note where id = p_id;
+    update public.members set quote_plan = null, quote_amount = null, quote_at = null where id = r.user_id;
     select expires_at into newexp from public.members where id = r.user_id;
   end if;
   return json_build_object('id', p_id, 'approved', p_approve, 'expires_at', newexp);

@@ -210,6 +210,11 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .news .t{font-weight:600;line-height:1.4}
 .news p{margin:4px 0 6px;font-size:13.5px;color:var(--ink-2)}
 .outlook summary::-webkit-details-marker{display:none}
+.gstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-2)}
+.gstep .gnum{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:16px}
+.gstep .gbody{min-width:0;flex:1}.gstep b{font-size:16.5px;line-height:1.4;display:block}.gstep p{margin:4px 0 0;font-size:15px;line-height:1.55;color:var(--ink-2)}
+.gstep img{display:block;width:100%;margin-top:8px;border-radius:10px;border:1px solid var(--line)}
+.guide-sheet .gh{margin:6px 0 0;font-size:17px}.guide-sheet details summary{cursor:pointer;padding:8px 0}
 .asset{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line-2);font-size:14px}
 .asset:first-child{border-top:0}
 
@@ -751,7 +756,7 @@ function render() {
 function emptyPortfolio(el) {
   if (S.mode === 'loading') { el.innerHTML = `<div class="card stack" style="margin-top:8px"><div class="skel" style="width:40%"></div><div class="skel" style="height:40px;width:70%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><p class="note" style="margin:0">กำลังโหลดพอร์ตของคุณ…</p></div>`; return true; }
   if (T.length) return false;
-  if (SA) { el.innerHTML = onboarding(); return true; }
+  if (SA) { el.innerHTML = installCard() + onboarding(); return true; }
   el.innerHTML = `<div class="card empty" style="margin-top:8px"><h3>ยังไม่มีข้อมูลพอร์ต</h3><p class="note">นำเข้าไฟล์ PDF ใบแจ้งยอดจากแอป My GPF (ตามแผนการลงทุน, ตามประเภทเงิน และสรุปยอด) แล้วแอปจะคำนวณหน่วย มูลค่า และกำไรให้ทั้งหมด${S.mode === 'local' ? '<br><br>ตอนนี้เปิดหน้านี้นอกแอป Claude จึงอ่านข้อมูลที่บันทึกไว้ไม่ได้ เปิดลิงก์นี้ในแอป Claude เพื่อดูพอร์ตของคุณ' : ''}</p><button class="btn" data-act="import">นำเข้า PDF</button></div>`;
   return true;
 }
@@ -795,7 +800,9 @@ function checklistCard(force) {
 }
 function onboarding() {
   return `<div class="card stack" style="margin-top:8px"><div><div class="eyebrow">เริ่มใช้ GPF Journal</div><h2 style="font-size:20px;margin-top:2px">ติดตามเงิน กบข. ของคุณเองใน 3 ขั้นตอน</h2></div>
-  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div>${DL_GUIDE}<div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี) แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
+  ${ENV.standalone() || !ENV.mobile ? inappWarn() : ''}
+  <div class="stack" style="gap:8px"><button class="btn block" data-act="guide" data-gtab="install" style="font-size:16px;padding:13px">📲 วิธีติดตั้งแอปบนมือถือ</button><button class="btn block" data-act="guide" data-gtab="gpf" style="font-size:16px;padding:13px">📄 วิธีโหลดไฟล์จาก My GPF (มีรูปประกอบ)</button></div>
+  <div class="li"><div class="ic sw">1</div><div class="body"><div class="t">ดาวน์โหลด PDF จากแอป My GPF</div><div class="s">ปีละ 4 ไฟล์ 5 ปี รวม 20 ไฟล์ <a href="#" data-act="guide" data-gtab="gpf">ดูวิธีแบบมีรูป</a></div><details><summary class="note" style="cursor:pointer">ดูขั้นตอนแบบย่อ</summary>${DL_GUIDE}</details><div class="s" hidden>เมนูใบแจ้งยอด เลือก "รายการเคลื่อนไหวในบัญชี ตามแผนการลงทุน" ย้อนหลังเท่าที่แอปให้ (ปกติ 5 ปี) แอปจะคำนวณยอดยกมาของเงินก่อนหน้านั้นให้เอง จะเพิ่ม "ตามประเภทเงิน" และ "สรุปยอดเงินสมาชิก" ด้วยก็ได้</div></div></div>
   <div class="li"><div class="ic sw">2</div><div class="body"><div class="t">กดนำเข้า PDF แล้วเลือกทุกไฟล์พร้อมกัน</div><div class="s">แอปอ่านไฟล์ในเครื่องคุณเอง ไม่ส่งข้อมูลไปที่ไหน</div></div></div>
   <div class="li"><div class="ic sw">3</div><div class="body"><div class="t">ทุกเดือนบันทึกเงินนำส่ง หรือปีละครั้งนำเข้า PDF ปีใหม่</div><div class="s">NAV อัปเดตให้อัตโนมัติ กดสำรองข้อมูลเก็บไว้เป็นระยะ</div></div></div>
   <div class="verdict"><b>หลังนำเข้าแล้ว ข้อมูลที่ช่วยให้ตัวเลขแม่นยำสมบูรณ์</b><ul class="guide" style="margin-top:6px">
@@ -808,6 +815,66 @@ function onboarding() {
   <button class="btn block" data-act="import">นำเข้า PDF</button><label class="btn sec block" for="bkInHome">มีไฟล์สำรองอยู่แล้ว · กู้คืน</label><input type="file" id="bkInHome" accept=".json,application/json" hidden>
   <p class="note" style="margin:0">ระหว่างนี้ดูหน้า "กองทุน" เพื่อจัดอันดับและเทียบผลตอบแทนทุกแผนได้เลย</p></div>`;
 }
+
+/* ---------- คู่มือ: ติดตั้งแอป + โหลดไฟล์จาก My GPF + นำเข้า ---------- */
+const UA = navigator.userAgent || '';
+const ENV = {
+  ios: /iPhone|iPad|iPod/i.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+  android: /Android/i.test(UA),
+  inapp: /Line\/|FBAN|FBAV|FB_IAB|Instagram|Messenger|MicroMessenger|TikTok/i.test(UA),
+  standalone: () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true,
+};
+ENV.mobile = ENV.ios || ENV.android;
+let INSTALL_EVT = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EVT = e; if (S?.tab === 'home') render(); });
+window.addEventListener('appinstalled', () => { INSTALL_EVT = null; toast('ติดตั้งแอปแล้ว'); });
+const gStep = (n, title, body, img) => `<div class="gstep"><div class="gnum">${n}</div><div class="gbody"><b>${title}</b>${body ? `<p>${body}</p>` : ''}${img ? `<img src="guide/${img}" alt="${esc(title)}" loading="lazy">` : ''}</div></div>`;
+const inappWarn = () => ENV.inapp ? `<div class="banner" style="background:var(--warn-soft);display:block"><b>⚠️ ตอนนี้เปิดอยู่ในแอป ${/Line\//i.test(UA) ? 'LINE' : 'Facebook/Messenger'}</b><br>ข้อมูลอาจหายเมื่อปิด ให้เปิดใน ${ENV.ios ? 'Safari' : 'Chrome'} ก่อน: กดปุ่ม ${/Line\//i.test(UA) ? '⋮ หรือ ↗ มุมขวา' : '⋯ มุมขวา'} แล้วเลือก "เปิดในเบราว์เซอร์" / "Open in ${ENV.ios ? 'Safari' : 'Chrome'}"</div>` : '';
+function guideInstall() {
+  if (ENV.standalone()) return `<div class="banner" style="background:var(--up-soft)">✓ ติดตั้งแอปไว้บนหน้าจอเรียบร้อยแล้ว ต่อไปเปิดจากไอคอน GPF Journal ได้เลย</div>`;
+  const ios = `${gStep(1, 'เปิดลิงก์ด้วย Safari', 'ต้องเป็น Safari (ไอคอนเข็มทิศสีฟ้า) ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Safari" ก่อน')}
+    ${gStep(2, 'กดปุ่มแชร์', 'ปุ่มรูปสี่เหลี่ยมมีลูกศรชี้ขึ้น ⬆️ อยู่แถบล่างของจอ (iPad อยู่มุมขวาบน)')}
+    ${gStep(3, 'เลือก "เพิ่มไปยังหน้าจอโฮม"', 'ถ้าไม่เห็น ให้เลื่อนรายการลงมาอีกนิด')}
+    ${gStep(4, 'กด "เพิ่ม" มุมขวาบน', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}`;
+  const android = `${INSTALL_EVT ? `<button class="btn block" data-act="installnow" style="font-size:17px;padding:14px">📲 กดติดตั้งแอปเลย</button><p class="note" style="margin:0;text-align:center">หรือทำตามขั้นตอนด้านล่าง</p>` : ''}
+    ${gStep(1, 'เปิดลิงก์ด้วย Chrome', 'ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Chrome" ก่อน')}
+    ${gStep(2, 'กดปุ่ม ⋮ มุมขวาบน', 'ปุ่มจุดสามจุดแนวตั้ง')}
+    ${gStep(3, 'เลือก "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"', '')}
+    ${gStep(4, 'กด "ติดตั้ง"', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}`;
+  return `${inappWarn()}<p class="note" style="margin:0">ติดตั้งแล้วเปิดง่ายขึ้น และเครื่องจะไม่ลบข้อมูลทิ้งเอง <b>ควรติดตั้งก่อน แล้วค่อยนำเข้าไฟล์ในแอปที่ติดตั้ง</b> (บน iPhone ข้อมูลใน Safari กับในแอปที่ติดตั้งแยกกัน)</p>
+    ${ENV.android ? `<h3 class="gh">มือถือ Android</h3>${android}<details><summary class="note">ใช้ iPhone / iPad</summary>${ios}</details>` : `<h3 class="gh">iPhone / iPad</h3>${ios}<details><summary class="note">ใช้มือถือ Android</summary>${android}</details>`}
+    ${!ENV.mobile ? '<p class="note">บนคอมพิวเตอร์ใช้ผ่านเบราว์เซอร์ได้เลย (Chrome/Edge มีปุ่มติดตั้งที่ช่องที่อยู่เว็บ)</p>' : ''}`;
+}
+function guideGpf() {
+  return `<p class="note" style="margin:0">โหลดไฟล์ PDF จากแอป <b>My GPF</b> ของ กบข. ปีละ 4 ไฟล์ ย้อนหลังได้ 5 ปี <b>รวม 20 ไฟล์</b> ทำครั้งเดียว ใช้เวลาราว 5–10 นาที</p>
+    ${gStep(1, 'เปิดแอป My GPF แล้วกด "My Account"', 'อยู่แถบเมนูด้านล่าง', 'step1-my-account.jpg')}
+    ${gStep(2, 'กดแท็บ "ยอดเงิน กบข."', 'อยู่ด้านบน ถัดจาก "สรุปข้อมูล"', 'step2-balance-tab.jpg')}
+    ${gStep(3, 'เลื่อนลงแล้วกด "ดูยอดเงินย้อนหลังรายปี"', '', 'step3-yearly.jpg')}
+    ${gStep(4, 'แท็บ "ตามประเภทเงินนำส่ง" กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม', '<b>ทำทุกปี</b> เลื่อนลงจะเจอปีเก่า (ปีนี้, สิ้นปี 2568, 2567 ... ไปจนสุด) ปีละ 2 ไฟล์', 'step4-by-type.jpg')}
+    ${gStep(5, 'กดแท็บ "ตามแผนการลงทุน" แล้วทำแบบเดียวกัน', 'กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม <b>ทุกปี</b> เช่นกัน', 'step5-by-plan.jpg')}
+    <div class="banner"><b>ไฟล์ไปอยู่ไหน?</b><br>${ENV.android ? 'Android: ไฟล์จะอยู่ในโฟลเดอร์ "ดาวน์โหลด" (Download) ถ้าแอปเปิดไฟล์ขึ้นมาให้ดู ให้กดย้อนกลับแล้วกดปุ่มถัดไปได้เลย' : 'iPhone: ถ้าไฟล์เปิดขึ้นมาให้ดู กดปุ่มแชร์ ⬆️ → "บันทึกไปยังแอปไฟล์" → เลือกโฟลเดอร์เดียวกันทุกครั้ง (เช่นสร้างโฟลเดอร์ชื่อ GPF) → บันทึก'}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
+    <button class="btn block" data-act="guide" data-gtab="import">ต่อไป: นำเข้าไฟล์ในแอปนี้ ›</button>`;
+}
+function guideImport() {
+  return `${gStep(1, 'เปิด GPF Journal จากไอคอนบนหน้าจอ', 'ถ้ายังไม่ได้ติดตั้ง ดูแท็บ "ติดตั้งแอป"')}
+    ${gStep(2, 'กดปุ่ม "นำเข้า PDF"', 'อยู่หน้าแรก หรือเมนู บันทึก → นำเข้า PDF ใบแจ้งยอด')}
+    ${gStep(3, 'กด "เลือกไฟล์ PDF" แล้วเลือกทั้ง 20 ไฟล์พร้อมกัน', ENV.android ? 'Android: เปิดโฟลเดอร์ ดาวน์โหลด กด<b>ค้าง</b>ที่ไฟล์แรก แล้วแตะไฟล์ที่เหลือให้ครบ จากนั้นกด "เลือก"' : 'iPhone: ไปที่โฟลเดอร์ที่บันทึกไว้ กด "เลือก" มุมขวาบน แตะทุกไฟล์ให้มีเครื่องหมายถูก แล้วกด "เปิด"')}
+    ${gStep(4, 'รอแอปอ่านไฟล์ แล้วกด "รวมเข้าพอร์ต"', 'แอปบอกว่าแต่ละไฟล์เป็นแบบไหน ถ้าขาดปีไหนจะเตือน เลือกเพิ่มทีหลังได้ ไม่ต้องเริ่มใหม่')}
+    ${gStep(5, 'เสร็จแล้ว', 'หน้าแรกจะแสดงมูลค่า เงินต้น และกำไรทันที ถ้ามีกล่อง "ความครบถ้วนของข้อมูล" ให้ทำตามที่แนะนำ ทุกเดือน (หรือทุกปี) โหลดไฟล์ปีปัจจุบันมานำเข้าใหม่ได้เลย แอปจะแทนที่ของเดิมให้')}
+    <p class="note">ไฟล์ทั้งหมดอ่านในเครื่องของคุณ ไม่ถูกส่งไปที่ไหน</p>
+    <button class="btn block" data-act="import">นำเข้า PDF ตอนนี้</button>`;
+}
+function sheetGuide(tab = 'install') {
+  const tabs = [['install', 'ติดตั้งแอป'], ['gpf', 'โหลดไฟล์ My GPF'], ['import', 'นำเข้าในแอป']];
+  openSheet('คู่มือการใช้งาน', `<div class="stack guide-sheet"><div class="seg">${tabs.map(([k, l]) => `<button data-act="guide" data-gtab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
+    ${tab === 'install' ? guideInstall() : tab === 'gpf' ? guideGpf() : guideImport()}</div>`);
+}
+function installCard() {
+  if (!SA || ENV.standalone() || !ENV.mobile || store.get('installHide', false)) return '';
+  return `<div class="card stack" style="margin-top:8px"><div class="row between" style="align-items:flex-start;gap:8px"><div><b>📲 ติดตั้งแอปไว้บนหน้าจอมือถือ</b><p class="note" style="margin:2px 0 0">เปิดง่ายเหมือนแอปทั่วไป และข้อมูลไม่หาย</p></div><button class="btn ghost" data-act="installhide" style="padding:0 2px">ซ่อน</button></div>
+    ${ENV.inapp ? inappWarn() : ''}${INSTALL_EVT ? '<button class="btn block" data-act="installnow">ติดตั้งเลย</button>' : '<button class="btn sec block" data-act="guide" data-gtab="install">ดูวิธีติดตั้ง (4 ขั้นตอน)</button>'}</div>`;
+}
+
 function asOfT() { return S.asOf ? d2t(S.asOf) : 0; }
 function prevPoint(t, minGap = 1) { let p = null; for (const s of SERIES) { if (s.t <= t - minGap) p = s; else break; } return p; }
 function periodStats(t) {
@@ -831,7 +898,7 @@ function renderHome() {
   const statusPend = S.user.entries.filter(e => e._est && e._status === 'ok' && e.date <= lastMktD).length;
   const parts = Object.entries(v.parts).sort((a, b) => b[1].value - a[1].value);
   const est = parts.some(([p, o]) => o.navDate !== S.asOf);
-  el.innerHTML = `
+  el.innerHTML = `${installCard()}
   ${!SA && S.mode === 'local' && S.ledger ? `<div class="banner" style="margin-top:8px">กำลังแสดงข้อมูลที่จำไว้ในเครื่องนี้ การบันทึกใหม่จะเก็บในเครื่องนี้เท่านั้น</div>` : ''}
   ${SA && backupDue() ? `<div class="banner info" style="margin-top:8px"><span>ไม่ได้สำรองข้อมูลมา ${backupDue()} วัน ข้อมูลอยู่ในเบราว์เซอร์นี้เครื่องเดียว</span><button class="btn ghost" data-act="backup" style="margin-left:auto;padding:0 4px">สำรอง</button></div>` : ''}
   ${ledgerIssues(S.ledger).filter(i => i.level === 'bad').map(i => `<div class="banner" style="margin-top:8px;background:var(--down-soft)"><span>${esc(i.text)}</span><button class="btn ghost" data-act="import" style="margin-left:auto;padding:0 4px;white-space:nowrap">นำเข้าเพิ่ม</button></div>`).join('')}
@@ -1247,6 +1314,7 @@ function renderRecord() {
     ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
     ${S.ledger?.txns?.length ? toolBtn('checklist', 'ความครบถ้วนของข้อมูล', (() => { const o = dataChecklist().filter(x => x.st !== 'ok').length; return o ? `ยังขาด ${o} อย่าง` : 'ครบถ้วนแล้ว'; })(), '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>') : ''}
     ${S.ledger?.opening ? toolBtn('opening', 'ยอดยกมา', `${thd(S.ledger.opening.date, true)} · ${S.ledger.opening.source === 'manual' ? 'แก้เอง' : 'คำนวณอัตโนมัติ'}${S.ledger.opening.approx ? ' · ค่าประมาณ' : ''}`, '<path d="M4 6h16M4 12h10M4 18h6"/>') : ''}
+    ${toolBtn('guide', 'คู่มือการใช้งาน', 'ติดตั้งแอป · โหลด 20 ไฟล์จาก My GPF · นำเข้า', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>')}
     ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.txns?.length ? coverageText(S.ledger) : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
   </div>
   <div class="sec-h"><h2>รายการที่บันทึกเอง</h2><span class="note">${ents.length} รายการ</span></div>
@@ -1600,6 +1668,9 @@ document.addEventListener('click', async e => {
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
+  if (act === 'guide') { e.preventDefault(); return sheetGuide(b.dataset.gtab || 'install'); }
+  if (act === 'installhide') { store.set('installHide', true); render(); return; }
+  if (act === 'installnow') { if (INSTALL_EVT) { INSTALL_EVT.prompt(); try { await INSTALL_EVT.userChoice; } catch {} INSTALL_EVT = null; render(); } else sheetGuide('install'); return; }
   if (act === 'backup') return doBackup();
   if (act === 'opening') return sheetOpening();
   if (act === 'chkhide') { store.set('chkDismiss', b.dataset.sig); render(); return; }
