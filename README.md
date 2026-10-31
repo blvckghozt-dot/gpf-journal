@@ -68,5 +68,7 @@
 | `vendor/` | ตัวอ่าน PDF (pdf.js, Apache-2.0) |
 | `scripts/update_nav.py` + `.github/workflows/update-nav.yml` | ตัวดึง NAV จากเว็บ กบข. |
 | `sw.js`, `manifest.webmanifest`, `icons/` | ทำให้ติดตั้งเป็นแอปและเปิดได้ตอนออฟไลน์ |
+| `member.js`, `supabase/`, `vendor/qrcode.js` | ระบบสมาชิก (ปิดอยู่จนกว่าจะตั้งค่า ดู `SETUP-MEMBERSHIP.md`) |
+| `data/nav-log.json` | ผลการรันบอทดึง NAV แต่ละรอบ แสดงในหน้า "บันทึก" |
 
 ตัวเลขทางการให้ยึดตามแอป My GPF ของ กบข. แอปนี้ช่วยติดตามและวิเคราะห์เท่านั้น ไม่ใช่คำแนะนำการลงทุน

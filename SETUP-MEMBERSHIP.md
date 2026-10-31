@@ -1,0 +1,112 @@
+# ตั้งค่าระบบสมาชิก (ทดลองใช้ 14 วัน + ต่ออายุด้วยสลิปพร้อมเพย์)
+
+ระบบสมาชิกจะ**ปิดอยู่**จนกว่าจะใส่ค่าใน `member.js` (ขั้นตอนที่ 7) ระหว่างตั้งค่า แอปยังใช้งานได้ตามปกติ
+
+## ภาพรวม
+
+- ผู้ใช้ล็อกอินด้วยอีเมล (รับรหัส 6 หลัก) หรือ Google สมัครครั้งแรกจะได้ทดลองใช้ฟรี 14 วันอัตโนมัติ
+- หมดอายุแล้วจะเข้าแอปไม่ได้ และจะเห็นหน้าต่ออายุ: เลือกแพ็ก 49 บาท/เดือน หรือ 490 บาท/ปี → สแกน QR พร้อมเพย์ → อัปโหลดสลิป
+- ฟังก์ชัน `verify-slip` ส่งสลิปไปตรวจกับ EasySlip แล้วเช็คว่าโอนเข้าบัญชีคุณ ยอดถึงราคาแพ็กเกจ สลิปไม่เก่าเกิน 3 วัน และไม่เคยถูกใช้ ถ้าผ่านจะต่ออายุทันที (บวกต่อจากวันหมดอายุเดิม)
+- ข้อมูลพอร์ตของผู้ใช้ยังอยู่ในเครื่องเขาเหมือนเดิม ฝั่งเซิร์ฟเวอร์เก็บแค่อีเมล วันหมดอายุ และประวัติสลิป
+- เป็นการ**ล็อกแบบเบา** เช็คสิทธิ์ในเบราว์เซอร์ คนที่ชำนาญเทคนิคหลบได้ เพราะโค้ดเป็น public
+
+## ค่าใช้จ่าย
+
+| ส่วน | ค่าใช้จ่าย |
+|---|---|
+| Supabase (ล็อกอิน + ฐานข้อมูล + ฟังก์ชัน) | แพ็กเกจฟรีพอสำหรับหลักร้อยคน |
+| EasySlip (ตรวจสลิป) | ตามแพ็กเกจที่เลือก ดูราคาที่เว็บ EasySlip |
+| GitHub Pages | ฟรี |
+| ส่งอีเมลรหัส (แนะนำ SMTP ของตัวเอง เช่น Resend หรือ Gmail) | มีแพ็กเกจฟรี |
+
+## 1. สร้างโปรเจกต์ Supabase
+
+1. สมัคร https://supabase.com แล้วกด **New project** (Region เลือก Singapore)
+2. จดไว้จาก **Project Settings → API**: `Project URL` และ `anon public` key
+   - `anon` key ใส่ในแอปได้ (ออกแบบมาให้เปิดเผยได้) ส่วน `service_role` key **ห้ามใส่ในแอปหรือส่งให้ใคร**
+
+## 2. สร้างตาราง
+
+**SQL Editor → New query** แล้ววางเนื้อหาไฟล์ `supabase/schema.sql` ทั้งหมด กด **Run**
+
+## 3. ตั้งค่าการล็อกอินด้วยอีเมล
+
+1. **Authentication → Sign In / Providers → Email**: เปิดไว้ (ค่าเริ่มต้นเปิดอยู่แล้ว)
+2. **Authentication → Emails → Templates → Magic Link**: ใส่ `{{ .Token }}` ลงในเนื้อหาอีเมล เพื่อให้ผู้ใช้ได้รหัสตัวเลข เช่น
+   ```html
+   <h2>รหัสเข้าสู่ระบบ GPF Journal</h2>
+   <p>รหัสของคุณคือ <b style="font-size:24px">{{ .Token }}</b> (ใช้ได้ภายใน 1 ชั่วโมง)</p>
+   ```
+3. **Authentication → Emails → SMTP Settings**: แนะนำให้ตั้ง SMTP ของตัวเอง เพราะอีเมลของ Supabase เองส่งได้ไม่กี่ฉบับต่อชั่วโมง ไม่พอเมื่อมีผู้ใช้หลายคน
+4. **Authentication → URL Configuration**:
+   - Site URL: `https://blvckghozt-dot.github.io/gpf-journal/`
+   - Redirect URLs: เพิ่ม `https://blvckghozt-dot.github.io/gpf-journal/`
+
+## 4. ล็อกอินด้วย Google (ข้ามได้ ถ้าข้ามให้ตั้ง `google: false` ใน member.js)
+
+1. https://console.cloud.google.com → APIs & Services → Credentials → **Create credentials → OAuth client ID** → Web application
+2. Authorized redirect URIs: `https://<project-ref>.supabase.co/auth/v1/callback` (ดูลิงก์ที่ถูกต้องได้ในหน้า Google provider ของ Supabase)
+3. นำ Client ID และ Client secret ไปใส่ที่ Supabase → **Authentication → Sign In / Providers → Google** แล้วเปิดใช้
+
+## 5. สมัคร EasySlip
+
+สมัคร https://developer.easyslip.com เลือกแพ็กเกจ แล้วคัดลอก API key
+
+## 6. ติดตั้งฟังก์ชันตรวจสลิป
+
+1. Supabase → **Edge Functions → Deploy a new function → Via Editor** ตั้งชื่อ `verify-slip`
+2. สร้างไฟล์ `index.ts` และ `check.ts` แล้ววางเนื้อหาจากโฟลเดอร์ `supabase/functions/verify-slip/` ให้ครบทั้ง 2 ไฟล์ กด Deploy
+   (ถ้าใช้ Supabase CLI: `supabase functions deploy verify-slip`)
+3. **Edge Functions → Secrets** เพิ่มค่าเหล่านี้:
+
+| ชื่อ | ตัวอย่าง | ความหมาย |
+|---|---|---|
+| `EASYSLIP_KEY` | `xxxxxxxx` | API key จาก EasySlip |
+| `RECEIVER_NAMES` | `สมชาย,SOMCHAI` | ชื่อผู้รับที่ขึ้นในสลิป คั่นด้วยจุลภาค ตรวจแบบ "มีคำนี้อยู่" ลองโอนเข้าบัญชีตัวเองดูว่าสลิปแสดงชื่อแบบไหน |
+| `RECEIVER_ACCOUNTS` | `5678` | (ไม่บังคับ) ตัวเลขบัญชี/พร้อมเพย์ที่โชว์ในสลิป ใช้แทนหรือร่วมกับชื่อ |
+| `PRICE_MONTH` | `49` | ราคารายเดือน ต้องตรงกับใน member.js |
+| `PRICE_YEAR` | `490` | ราคารายปี |
+| `MAX_SLIP_AGE_DAYS` | `3` | รับสลิปย้อนหลังได้กี่วัน |
+| `APP_ORIGIN` | `https://blvckghozt-dot.github.io` | เว็บที่อนุญาตให้เรียกฟังก์ชัน |
+
+## 7. เปิดระบบในแอป
+
+แก้ไฟล์ `member.js` ส่วน `CFG` ด้านบน:
+
+```js
+supabaseUrl: 'https://<project-ref>.supabase.co',
+supabaseAnonKey: '<anon public key>',
+promptpay: '08xxxxxxxx',          // เบอร์หรือเลขบัตรประชาชนที่ผูกพร้อมเพย์
+payeeName: 'นาย ...',
+contact: 'LINE: ...',
+```
+
+commit แล้วรอ 1–2 นาที ผู้ใช้ทุกคนจะเห็นหน้าเข้าสู่ระบบ
+
+## 8. ให้ตัวเองใช้ได้ตลอด
+
+ล็อกอินในแอปหนึ่งครั้ง แล้วรันใน SQL Editor:
+
+```sql
+update public.members set plan = 'owner', expires_at = '2099-12-31' where email = 'อีเมลของคุณ';
+```
+
+## ทดสอบด้วยเงินจริงจำนวนน้อย
+
+ตั้ง `PRICE_MONTH` เป็น `1` ใน Secrets และ `month.amount: 1` ใน member.js ชั่วคราว ลองสมัครด้วยอีเมลอื่น โอน 1 บาท อัปโหลดสลิป เสร็จแล้วเปลี่ยนกลับเป็น 49 ทั้งสองที่
+
+## งานประจำของเจ้าของ
+
+- โอนแล้วตรวจไม่ผ่าน (เช่นสลิปไม่ชัด): ต่ออายุให้เองใน SQL Editor
+  ```sql
+  update public.members set plan = 'month', expires_at = greatest(expires_at, now()) + interval '30 days' where email = '...';
+  ```
+- ดูรายรับ: **Table Editor → payments**
+- ดูสมาชิกทั้งหมด: **Table Editor → members**
+- แพ็กเกจฟรีของ Supabase จะพักโปรเจกต์ถ้าไม่มีการใช้งาน 1 สัปดาห์ ถ้ามีผู้ใช้ทุกวันจะไม่เกิด ถ้าถูกพัก กด Restore ในหน้า Dashboard
+
+## สิ่งที่ควรทำก่อนเปิดขายจริง
+
+- เขียนนโยบายความเป็นส่วนตัวสั้นๆ (เก็บอีเมลและข้อมูลสลิป ตาม PDPA)
+- จดทะเบียนพาณิชย์อิเล็กทรอนิกส์ และยื่นภาษีเงินได้จากรายรับ (ปรึกษานักบัญชี)
+- เนื้อหา "แนวโน้มรายแผน" ควรเป็นข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน และไม่ใช้ชื่อหรือโลโก้ กบข. ในลักษณะที่ดูเป็นของทางการ
