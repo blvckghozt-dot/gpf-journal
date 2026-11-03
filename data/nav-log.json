@@ -1,6 +1,16 @@
 {
  "runs": [
   {
+   "at": "2026-11-03T08:35:04Z",
+   "status": "fail",
+   "date": null,
+   "plans": 0,
+   "msg": "เว็บ กบข. ไม่ให้บอทดึงข้อมูล (ระบบป้องกันบอทตอบกลับแทนหน้า NAV) ต้องอัปเดต NAV ด้วยมือในแอปไปก่อน",
+   "http": 200,
+   "final": "https://www.gpf.or.th/thai2019/About/main.php?page=memberfund&lang=th&menu=statistic",
+   "snippet": "<html style=\"height:100%\"><head><META NAME=\"ROBOTS\" CONTENT=\"NOINDEX, NOFOLLOW\"><meta name=\"format-detection\" content=\"telephone=no\"><meta name=\"viewport\" content=\"initial-scale=1.0\"><meta http-equiv="
+  },
+  {
    "at": "2026-11-03T04:18:40Z",
    "status": "manual",
    "date": "2569-10-30",
