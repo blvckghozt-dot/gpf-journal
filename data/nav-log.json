@@ -1,7 +1,7 @@
 {
  "runs": [
   {
-   "at": "2026-11-08T07:58:48Z",
+   "at": "2026-11-08T18:05:16Z",
    "status": "fail",
    "date": null,
    "plans": 0,
@@ -9,7 +9,7 @@
    "http": 200,
    "final": "https://www.gpf.or.th/thai2019/About/main.php?page=memberfund&lang=th&menu=statistic",
    "snippet": "<html style=\"height:100%\"><head><META NAME=\"ROBOTS\" CONTENT=\"NOINDEX, NOFOLLOW\"><meta name=\"format-detection\" content=\"telephone=no\"><meta name=\"viewport\" content=\"initial-scale=1.0\"><meta http-equiv=",
-   "n": 5,
+   "n": 6,
    "since": "2026-11-06T08:30:11Z"
   },
   {
