@@ -1413,6 +1413,7 @@ function sheetNav() {
   openSheet('อัปเดต NAV', `<div class="stack">
     <div class="card stack"><b>1. เปิดหน้ามูลค่ากองทุนของ กบข.</b><a class="btn sec" href="${GPF_URL}" target="_blank" rel="noopener">เปิดเว็บ กบข. ↗</a><p class="note" style="margin:0">ลากคลุมกล่อง "มูลค่ากองทุนส่วนสมาชิก" ตั้งแต่ "วันที่ประกาศใช้" จนถึงแผนสุดท้าย แล้วคัดลอก</p></div>
     <div class="card stack"><b>2. วางข้อความที่คัดลอก</b><textarea class="inp" id="navTxt" placeholder="วันที่ประกาศใช้ 09/10/2569&#10;แผนเชิงรุก 20* … 30.9961&#10;แผนตราสารหนี้ 24.3028&#10;…"></textarea>
+      ${navigator.clipboard?.readText ? '<button class="btn block" id="navPaste">📋 วางจากคลิปบอร์ด</button>' : ''}
       <div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn sec" for="navXls" style="flex:1">หรือเลือกไฟล์ Excel จาก กบข.</label><input id="navXls" type="file" accept=".xlsx,.xls,.csv" multiple hidden></div></div>
     <div id="navPrev"></div></div>`, b => {
     let parsed = {}, source = 'gpf';
@@ -1424,6 +1425,7 @@ function sheetNav() {
       $('#navSave')?.addEventListener('click', async () => { const pub = $('#navPub')?.checked; for (const x of fresh) await saveNav(x.d, {values: x.vals, source, flags: x.flags, savedAt: Date.now()}); closeSheet(); toast(`บันทึก NAV ${fresh.length} วันแล้ว`); if (pub) { toast('กำลังเผยแพร่ให้ผู้ใช้ทุกคน…'); await publishWithToast(fresh.map(x => ({d: x.d, vals: x.vals, flags: x.flags}))); } });
     };
     $('#navTxt').addEventListener('input', () => { source = 'gpf'; parsed = NavParse.parseNavText($('#navTxt').value); show(); });
+    $('#navPaste')?.addEventListener('click', async () => { try { const t = await navigator.clipboard.readText(); if (!t.trim()) return toast('คลิปบอร์ดว่าง คัดลอกจากเว็บ กบข. ก่อน'); $('#navTxt').value = t; $('#navTxt').dispatchEvent(new Event('input')); } catch { toast('อ่านคลิปบอร์ดไม่ได้ กดค้างในช่องด้านบนแล้วเลือก "วาง" แทน'); } });
     $('#navXls').addEventListener('change', async e => { try { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); parsed = {}; for (const f of e.target.files) { const wb = XLSX.read(await f.arrayBuffer(), {type: 'array', cellDates: false}); for (const n of wb.SheetNames) Object.assign(parsed, NavParse.parseNavRows(XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: true}))); } source = 'excel'; show(); } catch (err) { $('#navPrev').innerHTML = `<div class="banner">อ่านไฟล์ไม่สำเร็จ: ${esc(err.message || err)}</div>`; } });
   });
 }
