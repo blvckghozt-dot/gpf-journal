@@ -524,6 +524,54 @@ const ASSETS = [
   {key:'แผนผสม', plans:['เชิงรุก 35','เชิงรุก 65','ลงทุนพื้นฐานทั่วไป','เชิงรุก 20','เชิงรุก 75','เกษียณสบายใจ 2569']},
 ];
 const MTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+/* ---------- สนับสนุนผู้พัฒนา (บริจาคตามความสมัครใจ) ---------- */
+const SUPPORT = {
+  promptpay: '',                       // เบอร์มือถือหรือเลขบัตรประชาชนที่ผูกพร้อมเพย์ เช่น '0812345678'
+  payee: 'ครูอภิวัฒน์ ปาวงค์',            // ชื่อที่แสดงใต้ QR
+  facebook: 'Apiwat Pawong',
+  facebookUrl: '',                     // ลิงก์โปรไฟล์ เช่น 'https://www.facebook.com/...'
+  amounts: [0, 20, 50, 100],           // 0 = ไม่ระบุยอด ผู้ให้กรอกเองในแอปธนาคาร
+};
+let supAmt = 0;
+async function qrModules(payload) { if (!window.qrcode) await loadScript('vendor/qrcode.js'); const q = window.qrcode(0, 'M'); q.addData(payload); q.make(); return q; }
+const ppPayload = amt => window.Member?.promptpayPayload(SUPPORT.promptpay, amt || 0);
+async function drawSupportQr() {
+  const box = $('#supQr'); if (!box || !SUPPORT.promptpay) return;
+  try { const q = await qrModules(ppPayload(supAmt)); box.innerHTML = q.createSvgTag({cellSize: 6, margin: 2, scalable: true}); } catch { box.textContent = 'สร้าง QR ไม่สำเร็จ'; }
+}
+async function saveSupportQr() {
+  const q = await qrModules(ppPayload(supAmt)); const n = q.getModuleCount(), cell = 12, pad = 48, top = 96, bottom = 120;
+  const W = n * cell + pad * 2, H = top + n * cell + pad + bottom; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#1b2a4a'; g.textAlign = 'center';
+  g.font = 'bold 30px sans-serif'; g.fillText('สนับสนุน GPF Journal', W / 2, 58);
+  g.fillStyle = '#000'; for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) g.fillRect(pad + k * cell, top + r * cell, cell, cell);
+  g.fillStyle = '#1b2a4a'; g.font = '26px sans-serif'; g.fillText('พร้อมเพย์ ' + SUPPORT.payee, W / 2, top + n * cell + pad + 20);
+  g.font = 'bold 30px sans-serif'; g.fillText(supAmt ? `${supAmt} บาท` : 'ระบุจำนวนได้ตามสะดวก', W / 2, top + n * cell + pad + 66);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png')); const file = new File([blob], 'gpf-journal-promptpay.png', {type: 'image/png'});
+  if (navigator.canShare?.({files: [file]})) { try { await navigator.share({files: [file], title: 'QR พร้อมเพย์ GPF Journal'}); return; } catch (e) { if (e?.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('บันทึกรูป QR แล้ว');
+}
+function sheetSupport() {
+  openSheet('สนับสนุนผู้พัฒนา', `<div class="stack">
+    <div class="card stack" style="text-align:center"><div style="font-size:34px">🙏</div>
+      <p style="margin:0;line-height:1.7">หวังว่า GPF Journal จะเป็นประโยชน์กับเพื่อนสมาชิก กบข. ทุกท่านนะครับ<br>แอปนี้<b>ใช้ฟรีทุกฟีเจอร์</b> ถ้าใช้แล้วถูกใจ สามารถสนับสนุนได้ตามความสมัครใจ เพื่อเป็นกำลังใจและใช้ในการอัปเดตข่าว อัปเดต NAV และพัฒนาระบบอย่างต่อเนื่อง</p></div>
+    ${SUPPORT.promptpay ? `<div class="card stack"><b>สแกนพร้อมเพย์</b>
+      <div class="seg">${SUPPORT.amounts.map(a => `<button data-supamt="${a}" aria-pressed="${a === supAmt}">${a ? a + ' บาท' : 'ระบุเอง'}</button>`).join('')}</div>
+      <div id="supQr" style="background:#fff;border-radius:14px;padding:10px;width:min(240px,66vw);margin:0 auto"></div>
+      <div style="text-align:center"><b>${supAmt ? supAmt + ' บาท' : 'ระบุจำนวนในแอปธนาคาร'}</b><div class="note">พร้อมเพย์ ${esc(SUPPORT.payee)}</div></div>
+      <button class="btn sec block" id="supSave">บันทึกรูป QR</button>
+      <p class="note" style="margin:0">จ่ายจากมือถือเครื่องนี้: กด "บันทึกรูป QR" แล้วเปิดแอปธนาคาร เลือกสแกนจากรูปในเครื่อง</p></div>` : '<div class="card"><p class="note" style="margin:0">ยังไม่ได้ตั้งค่าเลขพร้อมเพย์</p></div>'}
+    <div class="card stack"><b>ติดต่อผู้พัฒนา</b><p class="note" style="margin:0">พบปัญหา อยากเสนอฟีเจอร์ หรืออยากทักทาย ส่งข้อความมาได้เลยครับ</p>
+      ${SUPPORT.facebookUrl ? `<a class="btn block" href="${esc(SUPPORT.facebookUrl)}" target="_blank" rel="noopener">Facebook: ${esc(SUPPORT.facebook)}</a>` : `<div class="row between"><span>Facebook: <b>${esc(SUPPORT.facebook)}</b></span><button class="btn ghost" id="supCopy">คัดลอกชื่อ</button></div>`}</div>
+    <p class="note" style="text-align:center;margin:0">พัฒนาโดย ${esc(SUPPORT.payee)}</p></div>`, b => {
+    b.querySelectorAll('[data-supamt]').forEach(x => x.addEventListener('click', () => { supAmt = +x.dataset.supamt; sheetSupport(); }));
+    $('#supSave')?.addEventListener('click', () => saveSupportQr().catch(() => toast('บันทึกรูปไม่สำเร็จ ลองแคปหน้าจอแทน')));
+    $('#supCopy')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(SUPPORT.facebook); toast('คัดลอกแล้ว ค้นหาชื่อนี้ใน Facebook ได้เลย'); } catch { toast(SUPPORT.facebook); } });
+    drawSupportQr();
+  });
+}
+
 const GPF_URL = 'https://www.gpf.or.th/thai2019/About/main.php?page=memberfund&lang=th&menu=statistic';
 
 /* ---------- utils ---------- */
@@ -937,6 +985,7 @@ function renderHome() {
   </div>
   <div class="sec-h"><h2>ใครออมให้คุณ</h2><span class="note">ข้อมูลจากใบแจ้งยอด</span></div>
   <div class="card">${gpfPart}</div>
+  <button class="btn ghost block" data-act="support" style="margin-top:14px">☕ ชอบแอปนี้? สนับสนุนผู้พัฒนา</button>
   `;
   drawHomeChart();
 }
@@ -1314,6 +1363,7 @@ function renderRecord() {
     ${toolBtn('check', 'ตรวจยอดกับแอป My GPF', lastCheck ? `ล่าสุด ${thd(lastCheck.date)} ${Math.abs(lastCheck.diff) < 1 ? 'ตรงกัน' : 'ต่าง ' + moneyN(lastCheck.diff, 2, true)}` : 'กรอกยอดจากแอป แล้วดูว่าตรงกันไหม', '<path d="M20 6L9 17l-5-5"/>')}
     ${S.ledger?.txns?.length ? toolBtn('checklist', 'ความครบถ้วนของข้อมูล', (() => { const o = dataChecklist().filter(x => x.st !== 'ok').length; return o ? `ยังขาด ${o} อย่าง` : 'ครบถ้วนแล้ว'; })(), '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>') : ''}
     ${S.ledger?.opening ? toolBtn('opening', 'ยอดยกมา', `${thd(S.ledger.opening.date, true)} · ${S.ledger.opening.source === 'manual' ? 'แก้เอง' : 'คำนวณอัตโนมัติ'}${S.ledger.opening.approx ? ' · ค่าประมาณ' : ''}`, '<path d="M4 6h16M4 12h10M4 18h6"/>') : ''}
+    ${toolBtn('support', 'สนับสนุนผู้พัฒนา', 'แอปใช้ฟรี สนับสนุนได้ตามความสมัครใจ · ติดต่อผู้พัฒนา', '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>')}
     ${toolBtn('guide', 'คู่มือการใช้งาน', 'ติดตั้งแอป · โหลด 20 ไฟล์จาก My GPF · นำเข้า', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>')}
     ${toolBtn('import', 'นำเข้า PDF ใบแจ้งยอด', S.ledger?.txns?.length ? coverageText(S.ledger) : 'ไฟล์จากแอป My GPF ทุกปี', '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')}
   </div>
@@ -1560,6 +1610,7 @@ function sheetSettings() {
     <div class="field"><label for="retIn">ปีที่จะเกษียณ (พ.ศ.)</label><input class="inp num" id="retIn" type="number" inputmode="numeric" placeholder="เช่น 2595" value="${st.retireYear || ''}"><span class="hint">ข้าราชการเกษียณ 30 ก.ย. ของปีที่อายุครบ 60 (เกิด ต.ค.–ธ.ค. เกษียณปีถัดไป) ใช้ในหน้าภาพรวม</span></div>
     <div class="field"><label for="oomIn">อัตราออมเพิ่ม (% ของเงินเดือน)</label><input class="inp num" id="oomIn" type="number" min="0" max="27" step="1" value="${st.oomperm || 0}"><span class="hint">ใช้แสดงในหน้าแรกและข้อมูลอ้างอิง ไม่มีผลต่อการคำนวณ</span></div>
     ${window.Member?.settingsHtml() || ''}
+    <button class="btn sec block" data-act="support">🙏 สนับสนุนผู้พัฒนา / ติดต่อ</button>
     <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
     ${GH ? `<details class="card"><summary style="cursor:pointer"><b>ผู้ดูแลแอป: เผยแพร่ NAV ให้ทุกคน</b></summary><div class="stack" style="margin-top:8px">
@@ -1670,6 +1721,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
+  if (act === 'support') return sheetSupport();
   if (act === 'guide') { e.preventDefault(); return sheetGuide(b.dataset.gtab || 'install'); }
   if (act === 'installhide') { store.set('installHide', true); render(); return; }
   if (act === 'installnow') { if (INSTALL_EVT) { INSTALL_EVT.prompt(); try { await INSTALL_EVT.userChoice; } catch {} INSTALL_EVT = null; render(); } else sheetGuide('install'); return; }
