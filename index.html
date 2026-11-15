@@ -1638,11 +1638,13 @@ function sheetSettings() {
   });
 }
 async function doBackup() {
-  const data = JSON.stringify({app: 'gpf-journal', v: 1, savedAt: Date.now(), ledger: S.ledger, user: stripUser(S.user), navDb: S.navDb}, null, 1); const filename = `gpf-journal-${todayD()}.json`;
+  const data = JSON.stringify(backupObj(), null, 1); const filename = `gpf-journal-${todayD()}.json`;
   if (SA) { const url = URL.createObjectURL(new Blob([data], {type: 'application/json'})); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); store.set('lastBackup', Date.now()); toast('ดาวน์โหลดไฟล์สำรองแล้ว'); render(); return; }
   const dl = await claudeUse('downloads'); if (!dl) return toast('เปิดในแอป Claude เพื่อดาวน์โหลดไฟล์'); try { await dl.save({filename, data}); store.set('lastBackup', Date.now()); } catch { toast('ยกเลิกการดาวน์โหลด'); }
 }
-async function restoreBackup(file) { try { const j = JSON.parse(await file.text()); if (j.app !== 'gpf-journal') throw 0; if (j.ledger) await saveLedger(j.ledger); if (j.user) { S.user = {entries: j.user.entries || [], checks: j.user.checks || [], settings: j.user.settings || {}}; await saveUser(); } if (j.navDb) for (const [d, doc] of Object.entries(j.navDb)) await saveNav(d, doc); closeSheet(); store.set('lastBackup', Date.now()); toast('กู้คืนข้อมูลแล้ว'); } catch { toast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ GPF Journal'); } }
+async function applyBackup(j) { if (j?.app !== 'gpf-journal') throw new Error('not backup'); if (j.ledger) await saveLedger(j.ledger); if (j.user) { S.user = {entries: j.user.entries || [], checks: j.user.checks || [], settings: j.user.settings || {}}; await saveUser(); } if (j.navDb) for (const [d, doc] of Object.entries(j.navDb)) await saveNav(d, doc); }
+const backupObj = () => ({app: 'gpf-journal', v: 1, savedAt: Date.now(), ledger: S.ledger, user: stripUser(S.user), navDb: S.navDb});
+async function restoreBackup(file) { try { await applyBackup(JSON.parse(await file.text())); closeSheet(); store.set('lastBackup', Date.now()); toast('กู้คืนข้อมูลแล้ว'); } catch { toast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ GPF Journal'); } }
 function backupDue() { if (!S.ledger) return 0; const last = store.get('lastBackup', 0) || S.ledger.importedAt || 0; const days = Math.floor((Date.now() - last) / 864e5); return days >= 30 ? days : 0; }
 function applyTheme() { const th = S.user.settings.theme || store.get('theme', 'system'); store.set('theme', th); if (th === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); }
 
@@ -1690,8 +1692,58 @@ async function loadFeeds() {
   try { const r = await fetch('data/nav-log.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.navLog = j.runs || []; } } catch {}
   try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); S.digest = Array.isArray(j) ? null : (j.digest || null); S.outlook = Array.isArray(j) ? [] : (j.outlook || []); store.set('news', S.news); store.set('digest', S.digest); store.set('outlook', S.outlook); } } catch {}
 }
+
+/* ---------- ย้ายจาก blvckghozt-dot.github.io → gpf-journal.pages.dev ---------- */
+const HOME_URL = 'https://gpf-journal.pages.dev/', HOME_ORIGIN = 'https://gpf-journal.pages.dev', OLD_ORIGIN = 'https://blvckghozt-dot.github.io';
+const isOldHost = () => location.origin === OLD_ORIGIN;
+const hasLocalData = () => !!(S.ledger || S.user?.entries?.length || S.user?.checks?.length || Object.keys(S.navDb || {}).length);
+function oldHostMigrate() {
+  if (!isOldHost()) return false;
+  const go = () => location.replace(HOME_URL + (location.hash || ''));
+  if (!hasLocalData() || store.get('migratedAt', 0)) { go(); return true; }
+  const el = document.createElement('div'); el.id = 'migrate'; el.style.cssText = 'position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;padding:max(24px,env(safe-area-inset-top)) 16px 32px';
+  const paint = (msg = '') => { el.innerHTML = `<div style="max-width:440px;margin:0 auto" class="stack">
+    <div class="card stack"><div style="font-size:34px">🏠</div><h3 style="margin:0">GPF Journal ย้ายบ้านแล้ว</h3>
+      <p style="margin:0;line-height:1.7">ลิงก์ใหม่สั้นและจำง่ายกว่าเดิม <b>gpf-journal.pages.dev</b><br>เครื่องนี้มีข้อมูลพอร์ตอยู่ที่ลิงก์เดิม กดปุ่มด้านล่างเพื่อย้ายข้อมูลไปลิงก์ใหม่ (ข้อมูลส่งตรงในเครื่องคุณ ไม่ผ่านที่อื่น)</p>
+      <button class="btn block" id="migGo" style="font-size:16px;padding:13px">ย้ายข้อมูลและไปลิงก์ใหม่</button>
+      <div id="migMsg" class="note">${msg}</div></div>
+    <div class="card stack"><b>ถ้าปุ่มด้านบนไม่ได้ผล</b><p class="note" style="margin:0">1. กดดาวน์โหลดไฟล์สำรอง 2. เปิด gpf-journal.pages.dev 3. ไปที่ ตั้งค่า → กู้คืนจากไฟล์ แล้วเลือกไฟล์ที่ดาวน์โหลด</p>
+      <button class="btn sec block" id="migFile">ดาวน์โหลดไฟล์สำรอง</button><a class="btn ghost block" href="${HOME_URL}">ไปลิงก์ใหม่</a></div>
+    <p class="note">ถ้าติดตั้งแอปไว้บนหน้าจอ ให้ลบไอคอนเดิม แล้วติดตั้งใหม่จากลิงก์ใหม่ (ดูวิธีในเมนู บันทึก → คู่มือการใช้งาน)</p>
+    <button class="btn ghost block" id="migLater">ใช้ลิงก์เดิมไปก่อน</button></div>`;
+    el.querySelector('#migGo').onclick = start; el.querySelector('#migFile').onclick = doBackup; el.querySelector('#migLater').onclick = () => el.remove(); };
+  let w = null, timer = 0;
+  const onMsg = e => {
+    if (e.origin !== HOME_ORIGIN || !e.data?.type) return;
+    if (e.data.type === 'gpfj-ready' && w) { clearTimeout(timer); w.postMessage({type: 'gpfj-data', payload: backupObj(), ghToken: ghToken() || undefined}, HOME_ORIGIN); el.querySelector('#migMsg').textContent = 'กำลังส่งข้อมูล…'; }
+    if (e.data.type === 'gpfj-done') { store.set('migratedAt', Date.now()); removeEventListener('message', onMsg); el.querySelector('#migMsg').innerHTML = '<b style="color:var(--up)">✓ ย้ายข้อมูลเรียบร้อย</b> ใช้งานต่อที่แท็บใหม่ได้เลย ปิดหน้านี้ได้'; }
+    if (e.data.type === 'gpfj-fail') paint('ย้ายไม่สำเร็จ ลองใช้วิธีไฟล์สำรองด้านล่าง');
+  };
+  function start() {
+    addEventListener('message', onMsg);
+    w = window.open(HOME_URL + '#migrate', '_blank');
+    if (!w) return paint('เบราว์เซอร์บล็อกการเปิดหน้าต่างใหม่ ลองใช้วิธีไฟล์สำรองด้านล่าง');
+    el.querySelector('#migMsg').textContent = 'กำลังเปิดลิงก์ใหม่…';
+    timer = setTimeout(() => paint('ลิงก์ใหม่ไม่ตอบกลับ (มักเกิดกับแอปที่ติดตั้งบน iPhone) ลองใช้วิธีไฟล์สำรองด้านล่าง'), 15000);
+  }
+  paint(); document.body.appendChild(el); return true;
+}
+function newHostReceive() {
+  if (location.origin !== HOME_ORIGIN || location.hash !== '#migrate') return;
+  try { history.replaceState(null, '', location.pathname); } catch {}
+  if (!window.opener) return toast('เปิดจากลิงก์เดิมไม่ได้ ใช้วิธีไฟล์สำรองแทน');
+  const onMsg = async e => {
+    if (e.origin !== OLD_ORIGIN || e.data?.type !== 'gpfj-data') return;
+    removeEventListener('message', onMsg);
+    try { await applyBackup(e.data.payload); if (e.data.ghToken && !ghToken()) store.set('ghToken', e.data.ghToken); store.set('lastBackup', Date.now()); e.source.postMessage({type: 'gpfj-done'}, OLD_ORIGIN); toast('ย้ายข้อมูลจากลิงก์เดิมเรียบร้อย'); render(); }
+    catch { e.source.postMessage({type: 'gpfj-fail'}, OLD_ORIGIN); toast('ย้ายข้อมูลไม่สำเร็จ'); }
+  };
+  addEventListener('message', onMsg);
+  window.opener.postMessage({type: 'gpfj-ready'}, OLD_ORIGIN);
+}
+
 async function initDb() {
-  if (SA) { if (window.Member?.enabled) await Member.gate(); S.mode = 'standalone'; try { navigator.storage?.persist?.(); } catch {} await loadFeeds(); recompute(); return; }
+  if (SA) { if (oldHostMigrate()) return; if (window.Member?.enabled) await Member.gate(); S.mode = 'standalone'; try { navigator.storage?.persist?.(); } catch {} await loadFeeds(); recompute(); newHostReceive(); return; }
   const db = await claudeUse('db'); const user = await claudeUse('user');
   if (user) { try { S.isOwner = await user.isOwner(); } catch {} }
   if (!db) { S.mode = 'local'; recompute(); return; }

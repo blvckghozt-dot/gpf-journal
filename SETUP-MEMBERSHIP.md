@@ -45,8 +45,8 @@
    ```
 3. **Authentication → Emails → SMTP Settings**: แนะนำให้ตั้ง SMTP ของตัวเอง เพราะอีเมลของ Supabase เองส่งได้ไม่กี่ฉบับต่อชั่วโมง ไม่พอเมื่อมีผู้ใช้หลายคน
 4. **Authentication → URL Configuration**:
-   - Site URL: `https://blvckghozt-dot.github.io/gpf-journal/`
-   - Redirect URLs: เพิ่ม `https://blvckghozt-dot.github.io/gpf-journal/`
+   - Site URL: `https://gpf-journal.pages.dev/`
+   - Redirect URLs: เพิ่ม `https://gpf-journal.pages.dev/`
 
 ## 4. ล็อกอินด้วย Google (ข้ามได้ ถ้าข้ามให้ตั้ง `google: false` ใน member.js)
 
@@ -73,7 +73,7 @@
 | `PRICE_MONTH` | `49` | ราคารายเดือน ต้องตรงกับใน member.js |
 | `PRICE_YEAR` | `490` | ราคารายปี |
 | `MAX_SLIP_AGE_DAYS` | `3` | รับสลิปย้อนหลังได้กี่วัน |
-| `APP_ORIGIN` | `https://blvckghozt-dot.github.io` | เว็บที่อนุญาตให้เรียกฟังก์ชัน |
+| `APP_ORIGIN` | `https://gpf-journal.pages.dev` | เว็บที่อนุญาตให้เรียกฟังก์ชัน |
 
 ## 7. เปิดระบบในแอป
 
