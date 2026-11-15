@@ -210,6 +210,8 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .news .t{font-weight:600;line-height:1.4}
 .news p{margin:4px 0 6px;font-size:13.5px;color:var(--ink-2)}
 .outlook summary::-webkit-details-marker{display:none}
+.disclaim{margin:28px 4px 6px;text-align:center;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.devpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.devpick .btn{flex-direction:column;gap:4px;padding:12px 4px;font-size:14px;height:auto;display:flex;align-items:center}
 .gstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-2)}
 .gstep .gnum{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:16px}
 .gstep .gbody{min-width:0;flex:1}.gstep b{font-size:16.5px;line-height:1.4;display:block}.gstep p{margin:4px 0 0;font-size:15px;line-height:1.55;color:var(--ink-2)}
@@ -284,6 +286,7 @@ textarea.inp{min-height:120px;resize:vertical;font-size:13px}
   <section id="v-news" data-view hidden></section>
   <section id="v-record" data-view hidden></section>
   <section id="v-support" data-view hidden></section>
+  <footer class="disclaim">แอปนี้ไม่ใช่แอปอย่างเป็นทางการของ กบข. และไม่ใช่คำแนะนำในการลงทุน<br>เป็นเพียงการเรียนรู้จากอดีต เพื่อบริหารจัดการความเสี่ยงในอนาคต</footer>
 </main>
 
 <nav class="tabbar" aria-label="เมนูหลัก"><div class="tabbar-in">
@@ -885,42 +888,65 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTAL
 window.addEventListener('appinstalled', () => { INSTALL_EVT = null; toast('ติดตั้งแอปแล้ว'); });
 const gStep = (n, title, body, img) => `<div class="gstep"><div class="gnum">${n}</div><div class="gbody"><b>${title}</b>${body ? `<p>${body}</p>` : ''}${img ? `<img src="guide/${img}" alt="${esc(title)}" loading="lazy">` : ''}</div></div>`;
 const inappWarn = () => ENV.inapp ? `<div class="banner" style="background:var(--warn-soft);display:block"><b>⚠️ ตอนนี้เปิดอยู่ในแอป ${/Line\//i.test(UA) ? 'LINE' : 'Facebook/Messenger'}</b><br>ข้อมูลอาจหายเมื่อปิด ให้เปิดใน ${ENV.ios ? 'Safari' : 'Chrome'} ก่อน: กดปุ่ม ${/Line\//i.test(UA) ? '⋮ หรือ ↗ มุมขวา' : '⋯ มุมขวา'} แล้วเลือก "เปิดในเบราว์เซอร์" / "Open in ${ENV.ios ? 'Safari' : 'Chrome'}"</div>` : '';
+let GTAB = 'install';
+const gDev = () => store.get('guideDev', null); // ผู้ใช้เลือกเอง: 'android' | 'ios' | 'pc'
+const DEVS = [['android', '🤖', 'มือถือ Android'], ['ios', '🍎', 'iPhone / iPad'], ['pc', '💻', 'คอมพิวเตอร์']];
+const devPicker = (title = 'คุณใช้อุปกรณ์อะไร?') => `<div class="stack" style="gap:8px"><b style="font-size:17px">${title}</b><div class="devpick">${DEVS.map(([k, ic, l]) => `<button class="btn ${gDev() === k ? '' : 'sec'}" data-act="gdev" data-dev="${k}"><span style="font-size:24px">${ic}</span>${l}</button>`).join('')}</div></div>`;
+const devBar = () => { const d = DEVS.find(x => x[0] === gDev()); return d ? `<div class="row between" style="gap:8px"><span class="note" style="margin:0">อุปกรณ์: <b>${d[1]} ${d[2]}</b></span><button class="btn ghost" data-act="gdev" data-dev="" style="padding:2px 6px">เปลี่ยน</button></div>` : ''; };
 function guideInstall() {
   if (ENV.standalone()) return `<div class="banner" style="background:var(--up-soft)">✓ ติดตั้งแอปไว้บนหน้าจอเรียบร้อยแล้ว ต่อไปเปิดจากไอคอน GPF Journal ได้เลย</div>`;
-  const ios = `${gStep(1, 'เปิดลิงก์ด้วย Safari', 'ต้องเป็น Safari (ไอคอนเข็มทิศสีฟ้า) ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Safari" ก่อน')}
-    ${gStep(2, 'กดปุ่มแชร์', 'ปุ่มรูปสี่เหลี่ยมมีลูกศรชี้ขึ้น ⬆️ อยู่แถบล่างของจอ (iPad อยู่มุมขวาบน)')}
-    ${gStep(3, 'เลือก "เพิ่มไปยังหน้าจอโฮม"', 'ถ้าไม่เห็น ให้เลื่อนรายการลงมาอีกนิด')}
-    ${gStep(4, 'กด "เพิ่ม" มุมขวาบน', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}`;
-  const android = `${INSTALL_EVT ? `<button class="btn block" data-act="installnow" style="font-size:17px;padding:14px">📲 กดติดตั้งแอปเลย</button><p class="note" style="margin:0;text-align:center">หรือทำตามขั้นตอนด้านล่าง</p>` : ''}
-    ${gStep(1, 'เปิดลิงก์ด้วย Chrome', 'ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Chrome" ก่อน')}
-    ${gStep(2, 'กดปุ่ม ⋮ มุมขวาบน', 'ปุ่มจุดสามจุดแนวตั้ง')}
-    ${gStep(3, 'เลือก "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"', '')}
-    ${gStep(4, 'กด "ติดตั้ง"', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}`;
-  return `${inappWarn()}<p class="note" style="margin:0">ติดตั้งแล้วเปิดง่ายขึ้น และเครื่องจะไม่ลบข้อมูลทิ้งเอง <b>ควรติดตั้งก่อน แล้วค่อยนำเข้าไฟล์ในแอปที่ติดตั้ง</b> (บน iPhone ข้อมูลใน Safari กับในแอปที่ติดตั้งแยกกัน)</p>
-    ${ENV.android ? `<h3 class="gh">มือถือ Android</h3>${android}<details><summary class="note">ใช้ iPhone / iPad</summary>${ios}</details>` : `<h3 class="gh">iPhone / iPad</h3>${ios}<details><summary class="note">ใช้มือถือ Android</summary>${android}</details>`}
-    ${!ENV.mobile ? '<p class="note">บนคอมพิวเตอร์ใช้ผ่านเบราว์เซอร์ได้เลย (Chrome/Edge มีปุ่มติดตั้งที่ช่องที่อยู่เว็บ)</p>' : ''}`;
+  const d = gDev(); if (!d) return `${inappWarn()}${devPicker()}<p class="note" style="margin:0">เลือกแล้วแอปจะแสดงขั้นตอนเฉพาะอุปกรณ์นั้น เปลี่ยนทีหลังได้</p>`;
+  const steps = {
+    ios: `${gStep(1, 'เปิดลิงก์ด้วย Safari', 'ต้องเป็น Safari (ไอคอนเข็มทิศสีฟ้า) ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Safari" ก่อน')}
+      ${gStep(2, 'กดปุ่มแชร์', 'ปุ่มรูปสี่เหลี่ยมมีลูกศรชี้ขึ้น อยู่แถบล่างของจอ (iPad อยู่มุมขวาบน)')}
+      ${gStep(3, 'เลือก "เพิ่มไปยังหน้าจอโฮม"', 'ถ้าไม่เห็น ให้เลื่อนรายการลงมาอีกนิด')}
+      ${gStep(4, 'กด "เพิ่ม" มุมขวาบน', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}
+      <p class="note">บน iPhone ข้อมูลใน Safari กับในแอปที่ติดตั้งแยกกัน ให้ติดตั้งก่อน แล้วค่อยนำเข้าไฟล์ในแอปที่ติดตั้ง</p>`,
+    android: `${INSTALL_EVT ? `<button class="btn block" data-act="installnow" style="font-size:17px;padding:14px">📲 กดติดตั้งแอปเลย</button><p class="note" style="margin:0;text-align:center">หรือทำตามขั้นตอนด้านล่าง</p>` : ''}
+      ${gStep(1, 'เปิดลิงก์ด้วย Chrome', 'ถ้าเปิดจาก LINE หรือ Facebook ให้กดเมนูมุมขวาแล้วเลือก "เปิดใน Chrome" ก่อน')}
+      ${gStep(2, 'กดปุ่ม ⋮ มุมขวาบน', 'ปุ่มจุดสามจุดแนวตั้ง')}
+      ${gStep(3, 'เลือก "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"', '')}
+      ${gStep(4, 'กด "ติดตั้ง"', 'จะมีไอคอน GPF Journal บนหน้าจอ เหมือนแอปทั่วไป')}`,
+    pc: `${INSTALL_EVT ? `<button class="btn block" data-act="installnow" style="font-size:17px;padding:14px">💻 กดติดตั้งแอปเลย</button>` : ''}
+      ${gStep(1, 'เปิดลิงก์ด้วย Chrome หรือ Edge', 'ใช้งานผ่านเบราว์เซอร์ได้เลย ไม่ต้องติดตั้งก็ได้ (กดดาว ☆ เพื่อบุ๊กมาร์กไว้)')}
+      ${gStep(2, 'ถ้าอยากติดตั้งเป็นแอป', 'ดูที่ช่องที่อยู่เว็บด้านขวา จะมีไอคอนรูปจอคอมมีลูกศร กดแล้วเลือก "ติดตั้ง" (Edge: เมนู ⋯ → แอป → ติดตั้งไซต์นี้เป็นแอป)')}
+      <p class="note">แอป My GPF อยู่บนมือถือ ถ้าจะใช้บนคอม ให้ส่งไฟล์ PDF จากมือถือมาที่คอมก่อน เช่น ผ่าน LINE Keep, อีเมล หรือ Google Drive</p>`,
+  };
+  return `${inappWarn()}${devBar()}${steps[d]}`;
 }
 function guideGpf() {
-  return `<p class="note" style="margin:0">โหลดไฟล์ PDF จากแอป <b>My GPF</b> ของ กบข. ปีละ 4 ไฟล์ ย้อนหลังได้ 5 ปี <b>รวม 20 ไฟล์</b> ทำครั้งเดียว ใช้เวลาราว 5–10 นาที</p>
+  const d = gDev();
+  const where = {
+    android: 'ไฟล์จะอยู่ในโฟลเดอร์ "ดาวน์โหลด" (Download) ถ้าแอปเปิดไฟล์ขึ้นมาให้ดู ให้กดย้อนกลับแล้วกดปุ่มถัดไปได้เลย',
+    ios: 'ถ้าไฟล์เปิดขึ้นมาให้ดู กดปุ่มแชร์ → "บันทึกไปยังแอปไฟล์" → เลือกโฟลเดอร์เดียวกันทุกครั้ง (เช่นสร้างโฟลเดอร์ชื่อ GPF) → บันทึก',
+    pc: 'โหลดไฟล์ในมือถือก่อน (ดูวิธีของ Android หรือ iPhone) แล้วส่งไฟล์ทั้งหมดมาที่คอม เช่น ผ่าน LINE Keep, อีเมล หรือ Google Drive',
+  };
+  return `${devBar()}<p class="note" style="margin:0">โหลดไฟล์ PDF จากแอป <b>My GPF</b> ของ กบข. ปีละ 4 ไฟล์ ย้อนหลังได้ 5 ปี <b>รวม 20 ไฟล์</b> ทำครั้งเดียว ใช้เวลาราว 5–10 นาที</p>
     ${gStep(1, 'เปิดแอป My GPF แล้วกด "My Account"', 'อยู่แถบเมนูด้านล่าง', 'step1-my-account.jpg')}
     ${gStep(2, 'กดแท็บ "ยอดเงิน กบข."', 'อยู่ด้านบน ถัดจาก "สรุปข้อมูล"', 'step2-balance-tab.jpg')}
     ${gStep(3, 'เลื่อนลงแล้วกด "ดูยอดเงินย้อนหลังรายปี"', '', 'step3-yearly.jpg')}
     ${gStep(4, 'แท็บ "ตามประเภทเงินนำส่ง" กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม', '<b>ทำทุกปี</b> เลื่อนลงจะเจอปีเก่า (ปีนี้, สิ้นปี 2568, 2567 ... ไปจนสุด) ปีละ 2 ไฟล์', 'step4-by-type.jpg')}
     ${gStep(5, 'กดแท็บ "ตามแผนการลงทุน" แล้วทำแบบเดียวกัน', 'กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม <b>ทุกปี</b> เช่นกัน', 'step5-by-plan.jpg')}
-    <div class="banner"><b>ไฟล์ไปอยู่ไหน?</b><br>${ENV.android ? 'Android: ไฟล์จะอยู่ในโฟลเดอร์ "ดาวน์โหลด" (Download) ถ้าแอปเปิดไฟล์ขึ้นมาให้ดู ให้กดย้อนกลับแล้วกดปุ่มถัดไปได้เลย' : 'iPhone: ถ้าไฟล์เปิดขึ้นมาให้ดู กดปุ่มแชร์ ⬆️ → "บันทึกไปยังแอปไฟล์" → เลือกโฟลเดอร์เดียวกันทุกครั้ง (เช่นสร้างโฟลเดอร์ชื่อ GPF) → บันทึก'}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
+    <div class="banner" style="display:block"><b>ไฟล์ไปอยู่ไหน?</b><br>${d ? where[d] : `<b>Android:</b> ${where.android}<br><b>iPhone:</b> ${where.ios}`}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
     <button class="btn block" data-act="guide" data-gtab="import">ต่อไป: นำเข้าไฟล์ในแอปนี้ ›</button>`;
 }
 function guideImport() {
-  return `${gStep(1, 'เปิด GPF Journal จากไอคอนบนหน้าจอ', 'ถ้ายังไม่ได้ติดตั้ง ดูแท็บ "ติดตั้งแอป"')}
+  const d = gDev();
+  const pick = {
+    android: 'เปิดโฟลเดอร์ ดาวน์โหลด กด<b>ค้าง</b>ที่ไฟล์แรก แล้วแตะไฟล์ที่เหลือให้ครบ จากนั้นกด "เลือก"',
+    ios: 'ไปที่โฟลเดอร์ที่บันทึกไว้ กด "เลือก" มุมขวาบน แตะทุกไฟล์ให้มีเครื่องหมายถูก แล้วกด "เปิด"',
+    pc: 'ไปที่โฟลเดอร์ที่เก็บไฟล์ กด Ctrl+A (Mac: ⌘+A) เพื่อเลือกทุกไฟล์ แล้วกด "Open"',
+  };
+  return `${devBar()}${gStep(1, d === 'pc' ? 'เปิด GPF Journal ในเบราว์เซอร์' : 'เปิด GPF Journal จากไอคอนบนหน้าจอ', d === 'pc' ? '' : 'ถ้ายังไม่ได้ติดตั้ง ดูแท็บ "ติดตั้งแอป"')}
     ${gStep(2, 'กดปุ่ม "นำเข้า PDF"', 'อยู่หน้าแรก หรือเมนู บันทึก → นำเข้า PDF ใบแจ้งยอด')}
-    ${gStep(3, 'กด "เลือกไฟล์ PDF" แล้วเลือกทั้ง 20 ไฟล์พร้อมกัน', ENV.android ? 'Android: เปิดโฟลเดอร์ ดาวน์โหลด กด<b>ค้าง</b>ที่ไฟล์แรก แล้วแตะไฟล์ที่เหลือให้ครบ จากนั้นกด "เลือก"' : 'iPhone: ไปที่โฟลเดอร์ที่บันทึกไว้ กด "เลือก" มุมขวาบน แตะทุกไฟล์ให้มีเครื่องหมายถูก แล้วกด "เปิด"')}
+    ${gStep(3, 'กด "เลือกไฟล์ PDF" แล้วเลือกทั้ง 20 ไฟล์พร้อมกัน', d ? pick[d] : `<b>Android:</b> ${pick.android}<br><b>iPhone:</b> ${pick.ios}<br><b>คอมพิวเตอร์:</b> ${pick.pc}`)}
     ${gStep(4, 'รอแอปอ่านไฟล์ แล้วกด "รวมเข้าพอร์ต"', 'แอปบอกว่าแต่ละไฟล์เป็นแบบไหน ถ้าขาดปีไหนจะเตือน เลือกเพิ่มทีหลังได้ ไม่ต้องเริ่มใหม่')}
     ${gStep(5, 'เสร็จแล้ว', 'หน้าแรกจะแสดงมูลค่า เงินต้น และกำไรทันที ถ้ามีกล่อง "ความครบถ้วนของข้อมูล" ให้ทำตามที่แนะนำ ทุกเดือน (หรือทุกปี) โหลดไฟล์ปีปัจจุบันมานำเข้าใหม่ได้เลย แอปจะแทนที่ของเดิมให้')}
     <p class="note">ไฟล์ทั้งหมดอ่านในเครื่องของคุณ ไม่ถูกส่งไปที่ไหน</p>
     <button class="btn block" data-act="import">นำเข้า PDF ตอนนี้</button>`;
 }
 function sheetGuide(tab = 'install') {
-  const tabs = [['install', 'ติดตั้งแอป'], ['gpf', 'โหลดไฟล์ My GPF'], ['import', 'นำเข้าในแอป']];
+  GTAB = tab; const tabs = [['install', 'ติดตั้งแอป'], ['gpf', 'โหลดไฟล์ My GPF'], ['import', 'นำเข้าในแอป']];
   openSheet('คู่มือการใช้งาน', `<div class="stack guide-sheet"><div class="seg">${tabs.map(([k, l]) => `<button data-act="guide" data-gtab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
     ${tab === 'install' ? guideInstall() : tab === 'gpf' ? guideGpf() : guideImport()}</div>`);
 }
@@ -1779,6 +1805,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
+  if (act === 'gdev') { store.set('guideDev', b.dataset.dev || null); return sheetGuide(GTAB); }
   if (act === 'support') { closeSheet?.(); S.tab = 'support'; render(); window.scrollTo({top: 0}); try { history.replaceState(null, '', '#support'); } catch {} return; }
   if (act === 'guide') { e.preventDefault(); return sheetGuide(b.dataset.gtab || 'install'); }
   if (act === 'installhide') { store.set('installHide', true); render(); return; }
