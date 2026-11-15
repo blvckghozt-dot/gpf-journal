@@ -886,9 +886,9 @@ ENV.mobile = ENV.ios || ENV.android;
 let INSTALL_EVT = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EVT = e; if (S?.tab === 'home') render(); });
 window.addEventListener('appinstalled', () => { INSTALL_EVT = null; toast('ติดตั้งแอปแล้ว'); });
-const gStep = (n, title, body, img) => `<div class="gstep"><div class="gnum">${n}</div><div class="gbody"><b>${title}</b>${body ? `<p>${body}</p>` : ''}${img ? `<img src="guide/${img}" alt="${esc(title)}" loading="lazy">` : ''}</div></div>`;
+const gStep = (n, title, body, img) => `<div class="gstep"><div class="gnum">${n}</div><div class="gbody"><b>${title}</b>${body ? `<p>${body}</p>` : ''}${img ? `<a href="guide/${img}" target="_blank" rel="noopener" title="แตะเพื่อดูภาพขนาดเต็ม"><img src="guide/${img}" alt="${esc(title)}" loading="lazy"></a>` : ''}</div></div>`;
 const inappWarn = () => ENV.inapp ? `<div class="banner" style="background:var(--warn-soft);display:block"><b>⚠️ ตอนนี้เปิดอยู่ในแอป ${/Line\//i.test(UA) ? 'LINE' : 'Facebook/Messenger'}</b><br>ข้อมูลอาจหายเมื่อปิด ให้เปิดใน ${ENV.ios ? 'Safari' : 'Chrome'} ก่อน: กดปุ่ม ${/Line\//i.test(UA) ? '⋮ หรือ ↗ มุมขวา' : '⋯ มุมขวา'} แล้วเลือก "เปิดในเบราว์เซอร์" / "Open in ${ENV.ios ? 'Safari' : 'Chrome'}"</div>` : '';
-let GTAB = 'install';
+let GTAB = 'install', GSRC = null; // GSRC: 'app' | 'web' (ว่าง = ตามอุปกรณ์)
 const gDev = () => store.get('guideDev', null); // ผู้ใช้เลือกเอง: 'android' | 'ios' | 'pc'
 const DEVS = [['android', '🤖', 'มือถือ Android'], ['ios', '🍎', 'iPhone / iPad'], ['pc', '💻', 'คอมพิวเตอร์']];
 const devPicker = (title = 'คุณใช้อุปกรณ์อะไร?') => `<div class="stack" style="gap:8px"><b style="font-size:17px">${title}</b><div class="devpick">${DEVS.map(([k, ic, l]) => `<button class="btn ${gDev() === k ? '' : 'sec'}" data-act="gdev" data-dev="${k}"><span style="font-size:24px">${ic}</span>${l}</button>`).join('')}</div></div>`;
@@ -910,7 +910,7 @@ function guideInstall() {
     pc: `${INSTALL_EVT ? `<button class="btn block" data-act="installnow" style="font-size:17px;padding:14px">💻 กดติดตั้งแอปเลย</button>` : ''}
       ${gStep(1, 'เปิดลิงก์ด้วย Chrome หรือ Edge', 'ใช้งานผ่านเบราว์เซอร์ได้เลย ไม่ต้องติดตั้งก็ได้ (กดดาว ☆ เพื่อบุ๊กมาร์กไว้)')}
       ${gStep(2, 'ถ้าอยากติดตั้งเป็นแอป', 'ดูที่ช่องที่อยู่เว็บด้านขวา จะมีไอคอนรูปจอคอมมีลูกศร กดแล้วเลือก "ติดตั้ง" (Edge: เมนู ⋯ → แอป → ติดตั้งไซต์นี้เป็นแอป)')}
-      <p class="note">ไฟล์ PDF โหลดบนคอมได้เลยจากเว็บไซต์ กบข. (ดูแท็บ "โหลดไฟล์ My GPF")</p>`,
+      <p class="note">ไฟล์ PDF โหลดบนคอมได้เลยจากเว็บไซต์ My GPF (เข้าสู่ระบบด้วย ThaiD) ดูแท็บ "โหลดไฟล์ My GPF"</p>`,
   };
   return `${inappWarn()}${devBar()}${steps[d]}`;
 }
@@ -920,15 +920,10 @@ function guideGpf() {
     android: 'ไฟล์จะอยู่ในโฟลเดอร์ "ดาวน์โหลด" (Download) ถ้าแอปเปิดไฟล์ขึ้นมาให้ดู ให้กดย้อนกลับแล้วกดปุ่มถัดไปได้เลย',
     ios: 'ถ้าไฟล์เปิดขึ้นมาให้ดู กดปุ่มแชร์ → "บันทึกไปยังแอปไฟล์" → เลือกโฟลเดอร์เดียวกันทุกครั้ง (เช่นสร้างโฟลเดอร์ชื่อ GPF) → บันทึก',
     pc: 'ไฟล์จะอยู่ในโฟลเดอร์ Downloads (ดาวน์โหลด) ของคอม',
+    web: '',
   };
-  if (d === 'pc') return `${devBar()}<p class="note" style="margin:0">บนคอมพิวเตอร์ โหลดไฟล์ PDF ชุดเดียวกับในแอป My GPF ได้จากเว็บไซต์ กบข. ปีละ 4 ไฟล์ ย้อนหลังได้ 5 ปี <b>รวม 20 ไฟล์</b></p>
-    ${gStep(1, 'เปิดเว็บไซต์ กบข. แล้วเข้าสู่ระบบสมาชิก', '<a href="https://www.gpf.or.th/thai2019/Index/index.php?lang=th" target="_blank" rel="noopener">www.gpf.or.th</a> ล็อกอินด้วยบัญชีสมาชิก กบข. ของคุณ')}
-    ${gStep(2, 'ไปที่ยอดเงิน กบข. → ดูยอดเงินย้อนหลังรายปี', 'ชื่อเมนูบนเว็บอาจต่างจากในแอปเล็กน้อย ให้หาหน้าที่มีปุ่ม "ดาวน์โหลด" แยกตามปี')}
-    ${gStep(3, 'ดาวน์โหลดแบบ "ตามประเภทเงินนำส่ง" ทั้ง 2 ไฟล์ ทุกปี', 'ดูยอดเงิน + ดูรายละเอียดรายการ ของปีนี้และย้อนหลังทุกปีที่มี')}
-    ${gStep(4, 'ดาวน์โหลดแบบ "ตามแผนการลงทุน" ทั้ง 2 ไฟล์ ทุกปี', 'ทำแบบเดียวกัน')}
-    <div class="banner" style="display:block"><b>ไฟล์ไปอยู่ไหน?</b><br>${where.pc}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
-    <p class="note">หรือโหลดจากแอป My GPF ในมือถือ แล้วส่งไฟล์มาที่คอมผ่าน LINE Keep, อีเมล หรือ Google Drive ก็ได้</p>
-    <button class="btn block" data-act="guide" data-gtab="import">ต่อไป: นำเข้าไฟล์ในแอปนี้ ›</button>`;
+  const src = GSRC || (d === 'pc' ? 'web' : 'app');
+  if (src === 'web') return `${devBar()}${guideWeb(d, where)}`;
   return `${devBar()}<p class="note" style="margin:0">โหลดไฟล์ PDF จากแอป <b>My GPF</b> ของ กบข. ปีละ 4 ไฟล์ ย้อนหลังได้ 5 ปี <b>รวม 20 ไฟล์</b> ทำครั้งเดียว ใช้เวลาราว 5–10 นาที</p>
     ${gStep(1, 'เปิดแอป My GPF แล้วกด "My Account"', 'อยู่แถบเมนูด้านล่าง', 'step1-my-account.jpg')}
     ${gStep(2, 'กดแท็บ "ยอดเงิน กบข."', 'อยู่ด้านบน ถัดจาก "สรุปข้อมูล"', 'step2-balance-tab.jpg')}
@@ -936,6 +931,18 @@ function guideGpf() {
     ${gStep(4, 'แท็บ "ตามประเภทเงินนำส่ง" กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม', '<b>ทำทุกปี</b> เลื่อนลงจะเจอปีเก่า (ปีนี้, สิ้นปี 2568, 2567 ... ไปจนสุด) ปีละ 2 ไฟล์', 'step4-by-type.jpg')}
     ${gStep(5, 'กดแท็บ "ตามแผนการลงทุน" แล้วทำแบบเดียวกัน', 'กด "ดาวน์โหลด" ทั้ง 2 ปุ่ม <b>ทุกปี</b> เช่นกัน', 'step5-by-plan.jpg')}
     <div class="banner" style="display:block"><b>ไฟล์ไปอยู่ไหน?</b><br>${d ? where[d] : `<b>Android:</b> ${where.android}<br><b>iPhone:</b> ${where.ios}`}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
+    <div class="banner" style="display:block;background:var(--accent-soft)"><b>เป็นสมาชิกนานกว่า 5 ปี?</b> ในแอป My GPF โหลดย้อนหลังได้แค่ 5 ปี แต่<b>เว็บไซต์ My GPF โหลดย้อนหลังได้มากกว่า</b> ไฟล์ปีแรกๆ ช่วยให้ยอดยกมาแม่นยำขึ้น<br><button class="btn sec" data-act="gsrc" data-src="web" style="margin-top:8px">ดูวิธีโหลดจากเว็บไซต์ ›</button></div>
+    <button class="btn block" data-act="guide" data-gtab="import">ต่อไป: นำเข้าไฟล์ในแอปนี้ ›</button>`;
+}
+function guideWeb(d, where) {
+  return `<p class="note" style="margin:0">เว็บไซต์ My GPF ใช้ได้ทั้งบนคอมและมือถือ <b>โหลดย้อนหลังได้มากกว่า 5 ปี</b> (ในแอปได้แค่ 5 ปี) ปีละ 4 ไฟล์ เหมือนในแอป</p>
+    ${gStep(1, 'เข้าเว็บไซต์ กบข. แล้วเข้าสู่ระบบด้วย ThaiD', '<a href="https://www.gpf.or.th/thai2019/Index/index.php?lang=th" target="_blank" rel="noopener">www.gpf.or.th</a> เลือกเข้าสู่ระบบสมาชิก My GPF แล้วยืนยันตัวตนผ่านแอป ThaiD ตามขั้นตอนบนจอ')}
+    ${gStep(2, 'ที่หน้า "บริการสมาชิก" กด "บัญชีของฉัน"', '', 'web1-my-account.jpg')}
+    ${gStep(3, 'เลือก "ดูยอดเงินตามประเภทเงินนำส่ง" ก่อน', 'อีกปุ่ม "ดูยอดเงินตามแผนการลงทุน" จะทำในขั้นที่ 5', 'web2-balance-buttons.jpg')}
+    ${gStep(4, 'เลือกปีในช่อง "ยอด ณ วันที่ …" แล้วกด "Save" และ "รายละเอียดรายการ"', 'ได้ปีละ 2 ไฟล์ <b>เปลี่ยนปีในช่องเลือกแล้วกดซ้ำทุกปี</b> ไล่ไปจนถึงปีเก่าสุดที่มี ถ้าไฟล์เปิดขึ้นมาในหน้าใหม่ ให้กดดาวน์โหลด/บันทึกในหน้านั้น', 'web3-by-type.jpg')}
+    ${gStep(5, 'กลับไปกด "ดูยอดเงินตามแผนการลงทุน" แล้วทำแบบเดียวกัน', 'เลือกทีละปี กด "Save" และ "รายละเอียดรายการ" ทุกปี', 'web4-by-plan.jpg')}
+    <div class="banner" style="display:block"><b>ไฟล์ไปอยู่ไหน?</b><br>${d ? where[d] : `<b>คอมพิวเตอร์:</b> ${where.pc}<br><b>Android:</b> ${where.android}<br><b>iPhone:</b> ${where.ios}`}<br>ชื่อไฟล์ลงท้ายด้วยปี ค.ศ. เช่น _2026 คือปี 2569</div>
+    <button class="btn ghost block" data-act="gsrc" data-src="app">หรือดูวิธีโหลดจากแอป My GPF ในมือถือ</button>
     <button class="btn block" data-act="guide" data-gtab="import">ต่อไป: นำเข้าไฟล์ในแอปนี้ ›</button>`;
 }
 function guideImport() {
@@ -947,7 +954,7 @@ function guideImport() {
   };
   return `${devBar()}${gStep(1, d === 'pc' ? 'เปิด GPF Journal ในเบราว์เซอร์' : 'เปิด GPF Journal จากไอคอนบนหน้าจอ', d === 'pc' ? '' : 'ถ้ายังไม่ได้ติดตั้ง ดูแท็บ "ติดตั้งแอป"')}
     ${gStep(2, 'กดปุ่ม "นำเข้า PDF"', 'อยู่หน้าแรก หรือเมนู บันทึก → นำเข้า PDF ใบแจ้งยอด')}
-    ${gStep(3, 'กด "เลือกไฟล์ PDF" แล้วเลือกทั้ง 20 ไฟล์พร้อมกัน', d ? pick[d] : `<b>Android:</b> ${pick.android}<br><b>iPhone:</b> ${pick.ios}<br><b>คอมพิวเตอร์:</b> ${pick.pc}`)}
+    ${gStep(3, 'กด "เลือกไฟล์ PDF" แล้วเลือกทุกไฟล์พร้อมกัน (ปกติ 20 ไฟล์ ถ้าโหลดจากเว็บอาจมากกว่า)', d ? pick[d] : `<b>Android:</b> ${pick.android}<br><b>iPhone:</b> ${pick.ios}<br><b>คอมพิวเตอร์:</b> ${pick.pc}`)}
     ${gStep(4, 'รอแอปอ่านไฟล์ แล้วกด "รวมเข้าพอร์ต"', 'แอปบอกว่าแต่ละไฟล์เป็นแบบไหน ถ้าขาดปีไหนจะเตือน เลือกเพิ่มทีหลังได้ ไม่ต้องเริ่มใหม่')}
     ${gStep(5, 'เสร็จแล้ว', 'หน้าแรกจะแสดงมูลค่า เงินต้น และกำไรทันที ถ้ามีกล่อง "ความครบถ้วนของข้อมูล" ให้ทำตามที่แนะนำ ทุกเดือน (หรือทุกปี) โหลดไฟล์ปีปัจจุบันมานำเข้าใหม่ได้เลย แอปจะแทนที่ของเดิมให้')}
     <p class="note">ไฟล์ทั้งหมดอ่านในเครื่องของคุณ ไม่ถูกส่งไปที่ไหน</p>
@@ -1813,7 +1820,8 @@ document.addEventListener('click', async e => {
   if (b.dataset.del) { const e2 = S.user.entries.find(x => x.id === b.dataset.del); if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; b.classList.add('danger'); setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'ลบ'; b.classList.remove('danger'); } }, 3000); return; } S.user.entries = S.user.entries.filter(x => x !== e2); await saveUser(); toast('ลบรายการแล้ว'); return; }
   if (b.dataset.delnav) { if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'ยืนยันลบ'; return; } await deleteNav(b.dataset.delnav); toast('ลบ NAV แล้ว'); return; }
   const act = b.dataset.act;
-  if (act === 'gdev') { store.set('guideDev', b.dataset.dev || null); return sheetGuide(GTAB); }
+  if (act === 'gdev') { store.set('guideDev', b.dataset.dev || null); GSRC = null; return sheetGuide(GTAB); }
+  if (act === 'gsrc') { GSRC = b.dataset.src; return sheetGuide('gpf'); }
   if (act === 'support') { closeSheet?.(); S.tab = 'support'; render(); window.scrollTo({top: 0}); try { history.replaceState(null, '', '#support'); } catch {} return; }
   if (act === 'guide') { e.preventDefault(); return sheetGuide(b.dataset.gtab || 'install'); }
   if (act === 'installhide') { store.set('installHide', true); render(); return; }
