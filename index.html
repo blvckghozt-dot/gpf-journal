@@ -2101,7 +2101,11 @@ document.addEventListener('click', async e => {
   if (act === 'retsave') { const y = +($('#retQuick')?.value || 0); if (!(y >= curYearBE() && y <= curYearBE() + 45)) return toast(`ใส่ปี พ.ศ. ระหว่าง ${curYearBE()}–${curYearBE() + 45}`); S.user.settings.retireYear = y; await saveUser(); toast('บันทึกปีเกษียณแล้ว'); return; }
   if (act === 'explain') return explainSheet(); if (act === 'navupdate') return sheetNav(); if (act === 'contrib') return sheetContrib(); if (act === 'switch') return sheetSwitch(); if (act === 'check') return sheetCheck(); if (act === 'import') return sheetImport();
 });
-let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') { drawFundChart(); renderFunds(); } if (S.tab === 'overview') renderOverview(); if (S.tab === 'history') render(); }, 150); });
+let rz, rzW = innerWidth; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => {
+  // มือถือ: คีย์บอร์ดเด้งทำให้ความสูงเปลี่ยน ไม่ต้องวาดใหม่ (ไม่งั้นช่องที่กำลังพิมพ์หาย)
+  if (innerWidth === rzW) return; rzW = innerWidth;
+  const ae = document.activeElement; if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
+  if (S.tab === 'home') drawHomeChart(); if (S.tab === 'funds') { drawFundChart(); renderFunds(); } if (S.tab === 'overview') renderOverview(); if (S.tab === 'history') render(); }, 150); });
 document.addEventListener('change', e => { if (e.target.id === 'bkInHome' && e.target.files[0]) restoreBackup(e.target.files[0]); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
