@@ -210,6 +210,12 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .news .t{font-weight:600;line-height:1.4}
 .news p{margin:4px 0 6px;font-size:13.5px;color:var(--ink-2)}
 .outlook summary::-webkit-details-marker{display:none}
+.rpgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}.rpgrid .field{margin:0}
+.rpcols2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rpopt{padding:12px;background:var(--surface-2,var(--bg));margin:0}
+.rpopt .big,.rpcols2 .big2{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.3}.rpcols2 .big2{font-size:18px}
+.rpopt .kvs,#rpOut>.kvs{grid-template-columns:1fr;margin-top:4px}
+.rpmode{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.rpmode summary{cursor:pointer}
+@media (max-width:340px){.rpgrid,.rpcols2{grid-template-columns:1fr}}
 .disclaim{margin:28px 4px 6px;text-align:center;font-size:12.5px;line-height:1.6;color:var(--muted)}
 .devpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.devpick .btn{flex-direction:column;gap:4px;padding:12px 4px;font-size:14px;height:auto;display:flex;align-items:center}
 .gstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-2)}
@@ -1293,11 +1299,140 @@ function retireCard(M, held) {
       <p class="note" style="margin:6px 0 0">จากมูลค่าตอนนี้ ${money(V, 0)} บวกเงินนำส่งเดือนละ ${money(monthly, 0)} (เท่าเดือนล่าสุด) อีก ${n} เดือน ยังไม่รวมเงินเดือนที่ขึ้น ตัวเลขใช้ดูภาพรวมเท่านั้น</p></div>
   </div>`;
 }
+/* ---------- วางแผนเงินเกษียณ: บำเหน็จ/บำนาญ + กบข. + หลังเกษียณ ---------- */
+// อันดับครู: ขั้นต่ำ/ขั้นสูง ตามบัญชีเงินเดือนครู (พ.ร.บ.เงินเดือนครูฯ ฉบับที่ 3 พ.ศ. 2558) และเงินวิทยฐานะต่อเดือน
+const TEACHER = [
+  {k: 'ครูผู้ช่วย', min: 15050, max: 24750, allow: 0}, {k: 'คศ.1 ครู', min: 15440, max: 34310, allow: 0},
+  {k: 'คศ.2 ชำนาญการ', min: 16190, max: 41620, allow: 3500}, {k: 'คศ.3 ชำนาญการพิเศษ', min: 19860, max: 58390, allow: 5600},
+  {k: 'คศ.4 เชี่ยวชาญ', min: 24400, max: 69040, allow: 9900}, {k: 'คศ.5 เชี่ยวชาญพิเศษ', min: 29980, max: 76800, allow: 13000},
+];
+const RP_DEF = {birth: '', start: '', salary: '', raise: 2.5, ceiling: '', teacher: false, rank: 1, promo: {}, oom: null, ret: null, post: 3, inf: 2, age: 85, modes: ['interest', 'annuity', 'real']};
+const rpGet = () => { const P = {...RP_DEF, ...store.get('retPlan', {})}; for (const k of ['raise', 'post', 'inf', 'age']) if (P[k] === '' || P[k] == null) P[k] = RP_DEF[k]; if (P.ret === '') P.ret = null; if (P.oom === '') P.oom = null; return P; };
+function planCagr(p, yrs = 5) { const a = NAV[p]; if (!a?.length) return null; const e = a[a.length - 1]; const s = a.find(n => n.t >= e.t - yrs * 365.25) || a[0]; const y = (e.t - s.t) / 365.25; return y >= 1 && s.v ? Math.pow(e.v / s.v, 1 / y) - 1 : null; }
+function rpDefaultReturn() { // ผลตอบแทนเฉลี่ยต่อปี 5 ปีของสัดส่วนแผนที่ถืออยู่
+  const t = SERIES.length ? SERIES[SERIES.length - 1].t : null; if (t == null) return 4; const parts = valueOf(holdingsAt(t), t).parts; let w = 0, r = 0;
+  for (const [p, o] of Object.entries(parts)) { const c = planCagr(p); if (c == null) continue; w += o.value; r += o.value * c; } return w ? Math.round(r / w * 1000) / 10 : 4;
+}
+function rpBuckets(V) { // แยกเงิน กบข. ปัจจุบันตามประเภท จากใบสรุปยอดล่าสุด
+  const s = (S.ledger?.summary || []).filter(x => x.total && x.saving).sort((a, b) => a.asOf.localeCompare(b.asOf)).pop();
+  if (!s) return {mine: V * 0.6, match: V * 0.25, keep: V * 0.15, est: true}; // ไม่มีใบสรุป: ประมาณสัดส่วน
+  const g = k => s[k]?.[2] || 0; const tot = g('saving') + g('extra') + g('match') + g('comp') + g('initial') || 1;
+  return {mine: V * (g('saving') + g('extra')) / tot, match: V * g('match') / tot, keep: V * (g('comp') + g('initial')) / tot, est: false};
+}
+const rpRetireDate = b => { const [y, m, d] = b.split('-').map(Number); const late = m > 10 || (m === 10 && d >= 2); return new Date(Date.UTC(y + 60 + (late ? 1 : 0), 8, 30)); };
+function rpSim(P, oomOverride) {
+  if (!P.birth || !P.start || !(+P.salary > 0)) return null;
+  const now = new Date(); const ret = rpRetireDate(P.birth); if (ret <= now) return {err: 'วันเกิดนี้เกษียณไปแล้ว'};
+  const r = (P.ret ?? rpDefaultReturn()) / 100, rm = Math.pow(1 + r, 1 / 12) - 1, g = (+P.raise || 0) / 100, oom = (oomOverride ?? P.oom ?? S.user.settings.oomperm ?? 0) / 100;
+  const V0 = SERIES.length ? SERIES[SERIES.length - 1].value : 0; const B = rpBuckets(V0);
+  let mine = B.mine, match = B.match, keep = B.keep, sal = +P.salary, rank = P.teacher ? +P.rank : null; const hist = [];
+  const ceilAt = () => P.teacher ? TEACHER[rank].max : (+P.ceiling || Infinity);
+  let y = now.getUTCFullYear(), m = now.getUTCMonth() + 1; // เดือนถัดไป
+  const promos = Object.entries(P.promo || {}).map(([i, be]) => ({i: +i, y: +be - 543})).filter(x => x.y && x.i > (rank ?? 99)).sort((a, b) => a.y - b.y);
+  while (Date.UTC(y, m, 1) <= ret.getTime()) {
+    if (P.teacher) for (const pr of promos) if (pr.y === y && m === 0 && pr.i > rank) { rank = pr.i; sal = Math.max(sal, TEACHER[rank].min); }
+    if (m === 3 || m === 9) sal = Math.min(Math.round(sal * (1 + g) / 10) * 10, Math.max(sal, ceilAt())); // 1 เม.ย. / 1 ต.ค.
+    mine = mine * (1 + rm) + sal * (0.03 + oom); match = match * (1 + rm) + sal * 0.03; keep = keep * (1 + rm) + sal * 0.02;
+    hist.push(sal); m++; if (m > 11) { m = 0; y++; }
+  }
+  const last = hist.length ? hist[hist.length - 1] : sal; const h60 = hist.slice(-60); const avg60 = h60.length ? h60.reduce((a, b) => a + b, 0) / h60.length : last;
+  const svc = (ret - new Date(P.start + 'T00:00:00Z')) / 864e5 / 365.25;
+  const pension = Math.min(avg60 * svc / 50, avg60 * 0.7);
+  const yrs = (ret - now) / 864e5 / 365.25;
+  return {ret, yrs, last, avg60, svc, pension, bamnet: last * svc, gpfAll: mine + match + keep, gpfPart: mine + match, keepAmt: keep, dorm: Math.min(pension * 15, 200000), rank, allow: P.teacher ? TEACHER[rank].allow : 0, est: B.est, r, oom, monthlyNow: +P.salary * (0.03 + oom)};
+}
+function rpIncome(L, P) { // รายได้ต่อเดือนจากเงินก้อน L
+  const r = (+P.post || 0) / 100, i = (+P.inf || 0) / 100, n = Math.max(1, (+P.age || 85) - 60), rm = r / 12, N = n * 12;
+  const interest = L * r / 12;
+  const annuity = rm ? L * rm / (1 - Math.pow(1 + rm, -N)) : L / N;
+  const real = Math.abs(r - i) < 1e-6 ? L / n / 12 : L * (r - i) / (1 - Math.pow((1 + i) / (1 + r), n)) / 12; // ปีแรก แล้วเพิ่มตามเงินเฟ้อทุกปี
+  return {interest, annuity, real, n};
+}
+function retirePlanCard() {
+  const P = rpGet(); const defR = rpDefaultReturn();
+  const yrOpts = rk => { const cy = curYearBE(); let o = '<option value="">ไม่ได้</option>'; for (let y = cy; y <= cy + 40; y++) o += `<option value="${y}"${+(P.promo?.[rk]) === y ? ' selected' : ''}>${y}</option>`; return o; };
+  return `<div class="sec-h"><h2>วางแผนเงินเกษียณ</h2><span class="note">บำเหน็จ / บำนาญ + กบข.</span></div>
+  <div class="card stack" id="rpCard">
+    <p class="note" style="margin:0">กรอกข้อมูลเพื่อคาดการณ์เงินที่จะได้ตอนเกษียณ (อายุ 60) และรายได้ต่อเดือนหลังเกษียณ ข้อมูลเก็บในเครื่องนี้เท่านั้น</p>
+    <div class="rpgrid">
+      <div class="field"><label>วันเกิด</label><input class="inp" type="date" data-rp="birth" value="${esc(P.birth)}"></div>
+      <div class="field"><label>วันเริ่มรับราชการ</label><input class="inp" type="date" data-rp="start" value="${esc(P.start)}"></div>
+      <div class="field"><label>เงินเดือนตอนนี้ (บาท)</label><input class="inp num" type="number" inputmode="decimal" data-rp="salary" value="${esc(P.salary)}" placeholder="ไม่รวมเงินวิทยฐานะ"></div>
+      <div class="field"><label>ขึ้นเงินเดือนต่อรอบ (%)</label><input class="inp num" type="number" step="0.1" inputmode="decimal" data-rp="raise" value="${esc(P.raise)}"><span class="note" style="margin:2px 0 0">รอบ 1 เม.ย. และ 1 ต.ค.</span></div>
+      <div class="field"><label>ออมเพิ่ม (% เพิ่มจาก 3%)</label><input class="inp num" type="number" min="0" max="27" inputmode="decimal" data-rp="oom" value="${esc(P.oom ?? S.user.settings.oomperm ?? 0)}"></div>
+      <div class="field"><label>ผลตอบแทน กบข. ต่อปี (%)</label><input class="inp num" type="number" step="0.1" inputmode="decimal" data-rp="ret" value="${esc(P.ret ?? defR)}"><span class="note" style="margin:2px 0 0">ค่าเริ่มต้น ${defR}% = เฉลี่ย 5 ปีของแผนที่ถืออยู่</span></div>
+    </div>
+    <label class="row" style="gap:8px"><input type="checkbox" data-rp="teacher" ${P.teacher ? 'checked' : ''}> เป็นข้าราชการครู (คิดเพดานเงินเดือนตามอันดับ และวิทยฐานะ)</label>
+    ${P.teacher ? `<div class="rpgrid"><div class="field"><label>อันดับตอนนี้</label><select class="inp" data-rp="rank">${TEACHER.map((t, i) => `<option value="${i}"${+P.rank === i ? ' selected' : ''}>${t.k}</option>`).join('')}</select></div>
+      ${TEACHER.map((t, i) => i > +P.rank && i >= 2 ? `<div class="field"><label>ได้ ${t.k.split(' ')[1]} ปี พ.ศ.</label><select class="inp" data-rpp="${i}">${yrOpts(i)}</select></div>` : '').join('')}</div>
+      <p class="note" style="margin:0">เงินวิทยฐานะไม่นำมาคิดบำเหน็จบำนาญและไม่หัก กบข. แต่วิทยฐานะที่สูงขึ้นทำให้เพดานเงินเดือนสูงขึ้น (นับตั้งแต่ ม.ค. ของปีที่เลือก)</p>`
+      : `<div class="field"><label>เพดานเงินเดือนของระดับ (บาท, ไม่บังคับ)</label><input class="inp num" type="number" inputmode="decimal" data-rp="ceiling" value="${esc(P.ceiling)}" placeholder="เว้นว่าง = ไม่มีเพดาน"></div>`}
+    <details><summary class="note" style="cursor:pointer">หลังเกษียณ: ผลตอบแทน เงินเฟ้อ อายุ</summary><div class="rpgrid" style="margin-top:8px">
+      <div class="field"><label>ผลตอบแทนหลังเกษียณ (%/ปี)</label><input class="inp num" type="number" step="0.1" data-rp="post" value="${esc(P.post)}"></div>
+      <div class="field"><label>เงินเฟ้อ (%/ปี)</label><input class="inp num" type="number" step="0.1" data-rp="inf" value="${esc(P.inf)}"></div>
+      <div class="field"><label>วางแผนให้เงินพอถึงอายุ</label><input class="inp num" type="number" data-rp="age" value="${esc(P.age)}"></div></div></details>
+    <div id="rpOut"></div>
+  </div>`;
+}
+function rpRender() {
+  const out = $('#rpOut'); if (!out) return; const P = rpGet(); const R = rpSim(P);
+  if (!R) { out.innerHTML = '<p class="note" style="margin:0">กรอกวันเกิด วันเริ่มรับราชการ และเงินเดือน เพื่อดูผลการคำนวณ</p>'; return; }
+  if (R.err) { out.innerHTML = `<p class="note">${esc(R.err)}</p>`; return; }
+  const inf = (+P.inf || 0) / 100, toToday = x => x / Math.pow(1 + inf, R.yrs); const M = x => money(x, 0);
+  const A = rpIncome(R.gpfAll, P), Bi = rpIncome(R.bamnet + R.gpfPart, P);
+  const modes = [['interest', 'กินแต่ดอกผล เงินต้นคงเดิม', 'คล้ายฝากออมต่อกับ กบข. แล้วถอนเฉพาะผลตอบแทน เงินต้นยังอยู่เป็นมรดก แต่มูลค่าจริงลดลงตามเงินเฟ้อทุกปี'], ['annuity', `ทยอยถอนเท่ากันทุกเดือนจนหมดตอนอายุ ${+P.age || 85}`, 'คล้ายบริการรับเงินเป็นงวดของ กบข. ได้ต่อเดือนมากกว่า แต่ถ้าอายุยืนเกินที่วางแผน เงินจะหมด'], ['real', `ทยอยถอนแบบปรับเพิ่มตามเงินเฟ้อ จนหมดตอนอายุ ${+P.age || 85}`, 'ปีแรกได้น้อยกว่าแบบเท่ากัน แต่เพิ่มขึ้นทุกปีตามเงินเฟ้อ อำนาจซื้อคงที่ เหมาะถ้ากังวลค่าครองชีพ']];
+  // จุดคุ้มทุน: บำนาญเริ่มได้มากกว่าบำเหน็จเมื่อไหร่ (คิดผลตอบแทนหลังเกษียณด้วย)
+  const extra = R.bamnet + R.gpfPart - R.gpfAll; let be = null; if (extra > 0 && R.pension > 0) { const rm = (+P.post || 0) / 1200; let pv = 0; for (let k = 1; k <= 600; k++) { pv += R.pension / Math.pow(1 + rm, k); if (pv >= extra) { be = k / 12; break; } } }
+  const ageNow = (Date.now() - Date.parse(P.birth)) / 864e5 / 365.25; const noOom = +P.oom > 0 ? rpSim(P, 0) : null;
+  out.innerHTML = `<hr style="border:0;border-top:1px solid var(--line-2);margin:4px 0">
+    <div class="kvs"><div><span>เกษียณ</span><span>30 ก.ย. ${R.ret.getUTCFullYear() + 543} (อีก ${R.yrs.toFixed(1)} ปี)</span></div>
+      <div><span>อายุราชการตอนเกษียณ</span><span>${R.svc.toFixed(2)} ปี</span></div>
+      <div><span>เงินเดือนเดือนสุดท้าย</span><span>${M(R.last)}</span></div>
+      <div><span>เงินเดือนเฉลี่ย 60 เดือนสุดท้าย</span><span>${M(R.avg60)}</span></div>
+      ${P.teacher ? `<div><span>อันดับตอนเกษียณ</span><span>${TEACHER[R.rank].k}${R.allow ? ` (+วิทยฐานะ ${M(R.allow)}/เดือน)` : ''}</span></div>` : ''}</div>
+    <div class="stack" style="gap:10px">
+      <div class="card stack rpopt"><b>ถ้าเลือกรับบำนาญ</b>
+        <div class="big">${M(R.pension)}<span class="note"> /เดือน ตลอดชีวิต</span></div>
+        <div class="kvs"><div><span>เงินจาก กบข. (ได้ทุกประเภท)</span><span>${M(R.gpfAll)}</span></div><div><span>บำเหน็จดำรงชีพ (ขอรับได้)</span><span>สูงสุด ${M(R.dorm)}</span></div></div>
+        <p class="note" style="margin:0">บำนาญ = เงินเดือนเฉลี่ย 60 เดือน × อายุราชการ ÷ 50 (ไม่เกิน 70%)${R.pension >= R.avg60 * 0.7 - 1 ? ' · ชนเพดาน 70%' : ''}</p></div>
+      <div class="card stack rpopt"><b>ถ้าเลือกรับบำเหน็จ</b>
+        <div class="big">${M(R.bamnet + R.gpfPart)}<span class="note"> ก้อนเดียว</span></div>
+        <div class="kvs"><div><span>บำเหน็จ (เงินเดือนสุดท้าย × อายุราชการ)</span><span>${M(R.bamnet)}</span></div><div><span>เงินจาก กบข. (ไม่ได้เงินชดเชย/ประเดิม)</span><span>${M(R.gpfPart)}</span></div></div>
+        <p class="note" style="margin:0">เสียเงินชดเชยและเงินประเดิมพร้อมผลประโยชน์ราว ${M(R.keepAmt)}</p></div>
+    </div>
+    <div class="banner" style="display:block"><b>เงิน กบข. ตอนเกษียณ ถ้าผลตอบแทนต่างไปจากที่ตั้งไว้</b><br>${[-2, 0, 2].map(d => { const rr = Math.round((R.r * 100 + d) * 10) / 10; const X = rpSim({...P, ret: rr}); return `${d < 0 ? 'ระวัง' : d > 0 ? 'ดี' : 'กลาง'} ${rr}%/ปี: <b>${M(X.gpfAll)}</b> (รับบำเหน็จได้ ${M(X.gpfPart)})`; }).join('<br>')}${R.r > 0.06 ? '<br><span style="color:var(--down)">ผลตอบแทนที่ตั้งไว้สูงกว่า 6% ต่อปี ซึ่งเป็นผลตอบแทนช่วงตลาดดีในอดีต อาจไม่เกิดซ้ำตลอดหลายสิบปี ลองดูกรณี "ระวัง" ประกอบ</span>' : ''}</div>
+    ${be != null ? `<div class="verdict">บำเหน็จได้เงินก้อนมากกว่าบำนาญ ${M(extra)} แต่บำนาญจะจ่ายคืนส่วนต่างนี้ได้หมดในราว <b>${be.toFixed(1)} ปี</b> (คิดผลตอบแทนหลังเกษียณแล้ว) ถ้าคาดว่าจะมีชีวิตอยู่เกินอายุ <b>${Math.ceil(60 + be)} ปี</b> บำนาญจะได้มากกว่า</div>` : extra <= 0 ? '<div class="verdict good">ตามตัวเลขนี้ บำนาญได้เงินก้อนจาก กบข. มากกว่าหรือเท่ากับบำเหน็จอยู่แล้ว และยังได้บำนาญรายเดือนเพิ่ม</div>' : ''}
+    <div class="sec-h" style="margin:6px 0 0"><h3 style="margin:0;font-size:16px">รายได้ต่อเดือนหลังเกษียณ</h3><span class="note">ผลตอบแทน ${+P.post}%/ปี</span></div>
+    <div class="stack" style="gap:6px">${modes.map(([k, t, d]) => `<details class="rpmode"${(P.modes || []).includes(k) ? ' open' : ''} data-mode="${k}"><summary><b>${t}</b></summary>
+      <div class="rpcols2" style="margin-top:6px"><div><span class="note">รับบำนาญ</span><div class="big2">${M(R.pension + A[k])}<span class="note">/เดือน</span></div><span class="note">บำนาญ ${M(R.pension)} + จาก กบข. ${M(A[k])}</span></div>
+      <div><span class="note">รับบำเหน็จ</span><div class="big2">${M(Bi[k])}<span class="note">/เดือน</span></div><span class="note">จากเงินก้อน ${M(R.bamnet + R.gpfPart)}</span></div></div>
+      <p class="note" style="margin:6px 0 0">${d}${k === 'real' ? ' (ตัวเลขนี้คือปีแรก)' : ''}</p></details>`).join('')}</div>
+    <div class="banner" style="display:block"><b>เทียบเป็นเงินวันนี้ (หักเงินเฟ้อ ${+P.inf}%/ปี)</b><br>บำนาญ ${M(R.pension)} ตอนเกษียณ มีค่าเท่ากับ <b>${M(toToday(R.pension))}</b> ในวันนี้ · เงิน กบข. ${M(R.gpfAll)} เท่ากับ <b>${M(toToday(R.gpfAll))}</b>${noOom ? `<br>ออมเพิ่ม ${+P.oom}% ทำให้เงินเดือนตอนนี้ลดลง ${M(+P.salary * P.oom / 100)}/เดือน แต่เงิน กบข. ตอนเกษียณเพิ่มขึ้น ${M(R.gpfAll - noOom.gpfAll)} (เงินออมเพิ่มนำไปลดหย่อนภาษีได้)` : ''}</div>
+    <div class="note" style="line-height:1.65"><b>ข้อสังเกต</b><br>
+      • บำนาญจ่ายตลอดชีวิตแต่<b>ไม่ปรับขึ้นตามเงินเฟ้ออัตโนมัติ</b> ยิ่งอายุยืน อำนาจซื้อยิ่งลด ควรมีเงินก้อนส่วนหนึ่งที่ลงทุนให้โตทันเงินเฟ้อ<br>
+      • แบบ "กินแต่ดอกผล" ปลอดภัยเรื่องเงินหมด แต่รายได้ต่อเดือนน้อยสุด และมูลค่าจริงลดลงทุกปี<br>
+      • ผลตอบแทนหลังเกษียณ ${+P.post}% เป็นสมมติฐาน ถ้าต้องการความเสี่ยงต่ำ (เงินฝาก/ตราสารหนี้ระยะสั้น) อาจได้ต่ำกว่านี้${R.est ? '<br>• ยังไม่มีไฟล์ "ดูยอดเงิน" (ตามประเภทเงิน) จึงประมาณสัดส่วนเงินชดเชยเอง นำเข้าไฟล์นี้เพื่อให้แม่นขึ้น' : ''}<br>
+      • เป็นการประมาณการเพื่อวางแผน ตัวเลขจริงขึ้นกับประวัติเงินเดือนและเวลาราชการจริง ตรวจสอบได้ที่ระบบ Digital Pension ของกรมบัญชีกลาง และ กบข.</div>`;
+  out.querySelectorAll('.rpmode').forEach(d => d.addEventListener('toggle', () => { const Q = rpGet(); const set = new Set(Q.modes || []); d.open ? set.add(d.dataset.mode) : set.delete(d.dataset.mode); store.set('retPlan', {...Q, modes: [...set]}); }));
+}
+function rpBind() {
+  const card = $('#rpCard'); if (!card) return; let tm;
+  card.addEventListener('input', e => { const el = e.target; if (!el.dataset.rp && !el.dataset.rpp) return; const P = rpGet();
+    if (el.dataset.rpp) { P.promo = {...(P.promo || {}), [el.dataset.rpp]: el.value}; }
+    else if (el.type === 'checkbox') P[el.dataset.rp] = el.checked;
+    else P[el.dataset.rp] = el.type === 'number' || el.tagName === 'SELECT' && el.dataset.rp === 'rank' ? (el.value === '' ? '' : +el.value) : el.value;
+    store.set('retPlan', P);
+    if (el.type === 'checkbox' || el.dataset.rp === 'rank') { renderOverview(); return; }
+    clearTimeout(tm); tm = setTimeout(rpRender, 250); });
+  rpRender();
+}
+
 function renderOverview() {
   const el = $('#v-overview'); const held = heldPlans(); S.simWin ||= '1Y';
   const M = planMetrics();
-  el.innerHTML = `${retireCard(M, held)}${simCard(held)}
+  el.innerHTML = `${retireCard(M, held)}${retirePlanCard()}${simCard(held)}
   <p class="note">การวิเคราะห์ใช้ NAV ย้อนหลังและข้อมูลพอร์ตของคุณ ไม่ได้บอกผลตอบแทนในอนาคต ดูตารางเปรียบเทียบทุกแผนได้ที่เมนู "กองทุน"</p>`;
+  rpBind();
 }
 function renderFunds() {
   const el = $('#v-funds'); const held = heldPlans();
