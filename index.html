@@ -1135,34 +1135,9 @@ function renderHistory() {
   if (S.histSeg === 'eras') body = historyEras(); else if (S.histSeg === 'month') body = historyMonths(); else if (S.histSeg === 'year') body = historyYears(); else body = historyTx();
   el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ประวัติการลงทุน</h2></div><div class="seg" role="group" aria-label="มุมมองประวัติ">${segs.map(([k, l]) => `<button data-hseg="${k}" aria-pressed="${S.histSeg === k}">${l}</button>`).join('')}</div><div style="margin-top:12px" class="stack">${body}</div>`;
   if (S.histSeg === 'month') { const rows = monthRows(); const yr = S.txYear || (rows.length ? rows[rows.length - 1].y : null); const rr = rows.filter(r => S.txYear === 'all' || r.y === yr); barChart($('#mChart'), rr.map(r => ({label: S.txYear === 'all' ? String(r.y).slice(2) : MTH[r.m], v: r.gain, title: `${MTH[r.m]} ${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายเดือน'}); }
-  $('#eraBench')?.addEventListener('change', e => { store.set('eraBench', e.target.value); renderHistory(); });
   if (S.histSeg === 'year') { const rows = yearRows(); barChart($('#yChart'), rows.map(r => ({label: String(r.y), v: r.gain, title: `${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายปี'}); }
 }
 function eraColor(i) { return `var(--s${i % 8 + 1})`; }
-// เทียบทุกช่วง รวมช่วงสั้น: ไม่คิดต่อปี แต่เทียบกับแผนอ้างอิงในช่วงเวลาเดียวกันเป๊ะ
-const eraBench = () => { const p = store.get('eraBench', 'ลงทุนพื้นฐานทั่วไป'); return NAV[p]?.length ? p : 'ลงทุนพื้นฐานทั่วไป'; };
-function eraCompare(E) {
-  const ERA_BENCH = eraBench(); const plans = Object.keys(NAV).filter(p => NAV[p]?.length).sort((a, b) => sh(a).localeCompare(sh(b), 'th'));
-  const ret = (p, b, e) => { const n0 = navAt(p, b), n1 = navAt(p, e); return n0 && n1 && n0.v ? n1.v / n0.v - 1 : null; };
-  const rows = E.map(e => {
-    let twr = 0, ok = false; for (const [p, w] of Object.entries(e.mix)) { const r = ret(p, e.b, e.e); if (r == null) { ok = false; break; } twr += w * r; ok = true; }
-    const bench = ret(ERA_BENCH, e.b, e.e); const isBench = Object.keys(e.mix).length === 1 && e.mix[ERA_BENCH];
-    const vsOld = e.effect && e.effect.oldV ? e.effect.diff / e.effect.oldV : null;
-    return {e, twr: ok ? twr : null, bench, ex: ok && bench != null && !isBench ? twr - bench : null, vsOld, short: e.days < 30};
-  }).filter(r => r.twr != null);
-  if (!rows.length) return '';
-  const best = rows.filter(r => r.ex != null && !r.short).sort((a, b) => b.ex - a.ex)[0];
-  const pp = x => x == null ? '—' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(2)}`;
-  return `<div class="card"><div class="eyebrow">เทียบทุกช่วง (นับช่วงสั้นด้วย)</div>
-    <div class="field" style="margin:8px 0 4px"><label for="eraBench">เทียบกับแผนอ้างอิง</label><select class="inp" id="eraBench">${plans.map(p => `<option value="${esc(p)}"${p === ERA_BENCH ? ' selected' : ''}>${esc(sh(p))}</option>`).join('')}</select></div>
-    <p class="note" style="margin:4px 0 8px">ไม่คิดต่อปี เพราะช่วงสั้นจะเพี้ยน แต่เทียบกับ<b>แผน${esc(sh(ERA_BENCH))}ในช่วงเวลาเดียวกันเป๊ะ</b> ช่วงไหนชนะก็คือเลือกแผนได้ดีกว่าแผนอ้างอิงในช่วงนั้น</p>
-    ${rows.map(r => { const isB = Object.keys(r.e.mix).length === 1 && r.e.mix[ERA_BENCH]; return `<div class="li" style="align-items:flex-start"><div class="body" style="min-width:0">
-      <div class="t" style="font-size:14.5px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${eraColor(r.e.i)};margin-right:5px"></span>ช่วงที่ ${r.e.i + 1} · ${esc(Object.keys(r.e.mix).sort((a, b) => r.e.mix[b] - r.e.mix[a]).map(sh).join(' + '))}</div>
-      <div class="s">${r.e.days < 61 ? r.e.days + ' วัน' : Math.round(r.e.days / 30.4) + ' เดือน'}${r.short ? ' · สั้นมาก' : ''} · ช่วงนี้ <span class="${cls(r.twr)}">${pct(r.twr)}</span> · ${esc(sh(ERA_BENCH))} ${r.bench == null ? '—' : pct(r.bench)}${r.vsOld == null ? '' : ` · เทียบแผนเดิม <span class="${cls(r.vsOld)}">${pct(r.vsOld)} (${moneyN(r.e.effect.diff, 0, true)})</span>`}</div></div>
-      <div style="text-align:right;flex:none;padding-left:8px"><b class="${cls(r.ex || 0)}" style="font-size:17px">${isB ? '—' : pp(r.ex)}</b><div class="note" style="margin:0">${isB ? 'แผนอ้างอิง' : r.ex == null ? '' : r.ex >= 0 ? 'ชนะ (จุด %)' : 'แพ้ (จุด %)'}</div></div></div>`; }).join('')}
-    ${best ? `<div class="verdict ${best.ex >= 0 ? 'good' : 'bad'}" style="margin-top:10px">ช่วงที่เลือกแผนได้ดีที่สุด (เทียบแผน${esc(sh(ERA_BENCH))} ในเวลาเดียวกัน): ช่วงที่ ${best.e.i + 1} (${esc(Object.keys(best.e.mix).map(sh).join(' + '))}) <b class="${cls(best.ex)}">${pp(best.ex)} จุด %</b> ใน ${Math.round(best.e.days / 30.4) || 1} เดือน</div>` : ''}
-    <p class="note" style="margin:8px 0 0">"ผลตอบแทนช่วง" คิดจากสัดส่วนแผนตอนเริ่มช่วง ไม่รวมผลของเงินนำส่งระหว่างช่วง · "เทียบแผนเดิม" คือเงินที่ย้ายมาเทียบกับถ้าไม่ย้าย · ช่วงสั้นกว่า 30 วันแสดงไว้แต่ไม่นำมาจัดอันดับ</p></div>`;
-}
 function historyEras() {
   const E = eras(); if (!E.length) return '';
   const tot = E.reduce((s, e) => s + Math.max(e.days, 1), 0);
@@ -1173,7 +1148,6 @@ function historyEras() {
     <div class="row between note"><span>${thd(t2d(E[0].b))}</span><span>${thd(t2d(E[E.length - 1].e))}</span></div>
     ${decisions.length ? `<div class="verdict ${net >= 0 ? 'good' : 'bad'}" style="margin-top:12px">รวมผลจากการตัดสินใจย้ายแผนทั้ง ${decisions.length} ครั้ง: <b class="${cls(net)}">${money(net, 2, true)}</b> เทียบกับถ้าถือแผนเดิมต่อไปในแต่ละช่วง${best ? `<br>ช่วงที่ทำผลตอบแทนต่อปีดีที่สุด: ช่วงที่ ${best.i + 1} (${esc(Object.keys(best.mix).map(sh).join(' + '))}) ${pct(best.irr)} ต่อปี` : ''}</div>` : ''}
   </div>
-  ${eraCompare(E)}
   ${E.slice().reverse().map(e => `<div class="card era" id="era-${e.i}" style="--c:${eraColor(e.i)}">
     <div class="head"><div style="min-width:0"><div class="eyebrow">ช่วงที่ ${e.i + 1}${e.isLast ? ' · ปัจจุบัน' : ''}</div><h3>${Object.entries(e.mix).sort((a, b) => b[1] - a[1]).map(([p, w]) => `แผน${esc(p)}${Object.keys(e.mix).length > 1 ? ` <span class="muted">${Math.round(w * 100)}%</span>` : ''}`).join('<br>')}</h3></div>
       <div style="text-align:right;white-space:nowrap"><div class="${cls(e.gain)}" style="font-weight:700;font-family:var(--f-display);font-size:18px">${money(e.gain, 2, true)}</div><div class="${cls(e.gain)} num" style="font-size:13px;font-weight:600">${pct(e.r)}</div></div></div>
@@ -1561,7 +1535,7 @@ function rpBind() {
 function renderOverview() {
   const el = $('#v-overview'); const held = heldPlans(); S.simWin ||= '1Y';
   const M = planMetrics();
-  el.innerHTML = `${retireCard(M, held)}${retirePlanCard()}${simCard(held)}
+  el.innerHTML = `${retireCard(M, held)}${retirePlanCard()}
   <p class="note">การวิเคราะห์ใช้ NAV ย้อนหลังและข้อมูลพอร์ตของคุณ ไม่ได้บอกผลตอบแทนในอนาคต ดูตารางเปรียบเทียบทุกแผนได้ที่เมนู "กองทุน"</p>`;
   rpBind();
 }
@@ -1589,6 +1563,7 @@ function renderFunds() {
       • <b>คุ้มเสี่ยง</b> = (ผลตอบแทน 3 ปี/ปี − แผนเงินฝากระยะสั้น) ÷ ผันผวน ยิ่งสูงยิ่งได้ผลตอบแทนส่วนเกินต่อความผันผวน 1 หน่วยมาก ถ้าแผนไม่ถึง 3 ปีใช้ 1 ปีแทน<br>
       • ล่าสุด เทียบ NAV ${thd(NAVDATES[NAVDATES.length - 2])} → ${thd(lastD)} · ช่วงอื่นใช้ NAV ใกล้วันที่สุดที่มี</div></details>
   </div>
+  ${simCard(held)}
   <div class="sec-h"><h2>ผลตอบแทนเทียบความเสี่ยง</h2><span class="note">ช่วงเดียวกันทั้งสองแกน</span></div>
   <div class="card stack"><div class="seg" role="group" aria-label="ช่วงผลตอบแทนเทียบความเสี่ยง">${[['1Y', '1 ปี'], ['3Y', '3 ปี'], ['5Y', '5 ปี']].map(([k, l]) => `<button data-rrwin="${k}" aria-pressed="${(S.rrWin || '3Y') === k}">${l}</button>`).join('')}</div><div id="rrChart"></div><p class="note" style="margin:0">มุมซ้ายบนดีที่สุด (ผลตอบแทนสูง ผันผวนต่ำ) · ${{'1Y': 'ผลตอบแทน 1 ปี · ผันผวนจาก NAV รายเดือน 12 เดือน', '3Y': 'ผลตอบแทนเฉลี่ยต่อปี 3 ปี · ผันผวนจาก NAV สิ้นไตรมาส 3 ปี', '5Y': 'ผลตอบแทนเฉลี่ยต่อปี 5 ปี · ผันผวนจาก NAV สิ้นไตรมาส 5 ปี'}[S.rrWin || '3Y']} · วงกลมโปร่ง = แผนมีข้อมูลไม่ครบช่วง ใช้ตั้งแต่วันแรกที่มี</p></div>
   <div class="sec-h"><h2>เทียบการเติบโต</h2><span class="note">เลือกได้สูงสุด 6 แผน</span></div>
