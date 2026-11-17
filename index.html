@@ -215,6 +215,8 @@ table.score .mbar span{position:absolute;top:0;bottom:0;border-radius:2px}
 .rpopt .big,.rpcols2 .big2{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.3}.rpcols2 .big2{font-size:18px}
 .rpopt .kvs,#rpOut>.kvs{grid-template-columns:1fr;margin-top:4px}
 .rpmode{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.rpmode summary{cursor:pointer}
+[hidden]{display:none!important}
+.rptbl{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}.rptbl td:last-child,.rptbl th:last-child{width:96px;white-space:nowrap}.rptbl th{text-align:left;font-weight:600;color:var(--muted,inherit);font-size:12.5px;padding:4px 6px;border-bottom:1px solid var(--line)}.rptbl td{padding:8px 6px;border-bottom:1px solid var(--line-2,var(--line));vertical-align:top}.rptbl th:last-child,.rptbl td:last-child{text-align:right}.rptbl tr:last-child td{border-bottom:0}
 @media (max-width:340px){.rpgrid,.rpcols2{grid-template-columns:1fr}}
 .disclaim{margin:28px 4px 6px;text-align:center;font-size:12.5px;line-height:1.6;color:var(--muted)}
 .devpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.devpick .btn{flex-direction:column;gap:4px;padding:12px 4px;font-size:14px;height:auto;display:flex;align-items:center}
@@ -1242,7 +1244,7 @@ function planMetrics() {
 const SORTS = [['fit', 'เหมาะกับระยะเวลา'], ['1Y', '1 ปี'], ['3Y', '3 ปี/ปี'], ['5Y', '5 ปี/ปี'], ['YTD', 'ต้นปี'], ['3M', '3 เดือน'], ['1M', '1 เดือน'], ['LAST', 'ล่าสุด'], ['score', 'คุ้มความเสี่ยง'], ['risk', 'ผันผวนต่ำ']];
 function sortVal(m, k) { if (k === 'fit') { const h = horizon(); if (!h || !m.risk) return null; const b = bandFor(h); return m.risk.sd <= b.max + 0.002 && m.risk.sd >= b.min - 0.002 ? 10 + (m.score ?? 0) : (m.score ?? 0) - 10; } if (k === 'score') return m.score; if (k === 'risk') return m.risk ? -m.risk.sd : null; return m.r[k]?.r ?? null; }
 function curYearBE() { return new Date().getFullYear() + 543; }
-function horizon() { const y = +S.user.settings.retireYear; if (!y) return null; const end = d2t(`${y}-09-30`); const now = d2t(todayD()); return {year: y, days: end - now, years: Math.max(0, (end - now) / 365.25)}; }
+function horizon() { let y = +S.user.settings.retireYear; if (!y) { const bd = store.get('retPlan', {})?.birth; if (bd && /^\d{4}-\d\d-\d\d$/.test(bd)) y = rpRetireDate(bd).getUTCFullYear() + 543; } if (!y) return null; const end = d2t(`${y}-09-30`); const now = d2t(todayD()); return {year: y, days: end - now, years: Math.max(0, (end - now) / 365.25)}; }
 function bandFor(h) {
   if (h.years >= 15) return {min: 0.06, max: 0.17, label: 'รับความผันผวนได้สูง', note: 'ยังมีเวลาให้ตลาดฟื้นหลายรอบ แผนหุ้นหรือแผนเชิงรุกสัดส่วนหุ้นสูงทำงานได้เต็มที่'};
   if (h.years >= 8) return {min: 0.03, max: 0.10, label: 'ผันผวนปานกลางค่อนสูง', note: 'ยังลงทุนเพื่อการเติบโตได้ แต่ควรเลี่ยงแผนที่เคยลดลงเกิน 20–25% ในช่วงสั้น'};
@@ -1259,18 +1261,12 @@ function retireCard(M, held) {
   const fits = M.filter(m => m.risk && m.risk.sd <= band.max + 0.002 && m.risk.sd >= band.min - 0.002);
   const best = [...fits].filter(m => m.score != null).sort((a, b) => b.score - a.score).slice(0, 3);
   const status = pv == null ? null : pv > band.max * 1.3 ? ['bad', 'เสี่ยงกว่าระดับที่แนะนำ'] : pv > band.max + 0.002 ? ['warn', 'เสี่ยงกว่าระดับที่แนะนำเล็กน้อย'] : pv < band.min - 0.002 ? ['warn', 'ระมัดระวังกว่าที่จำเป็น อาจโตช้า'] : ['ok', 'อยู่ในระดับที่เหมาะ'];
-  // projection
-  const lastC = T.filter(x => x.kind === 'contrib').pop(); const monthly = lastC ? r2(T.filter(x => x.t === lastC.t && x.kind === 'contrib').reduce((s, x) => s + x.amount, 0)) : 0;
-  const V = SERIES.length ? SERIES[SERIES.length - 1].value : 0; const n = Math.max(0, Math.round(h.days / 30.44));
-  const fv = r => { const rm = Math.pow(1 + r, 1 / 12) - 1; return V * Math.pow(1 + rm, n) + (rm ? monthly * (Math.pow(1 + rm, n) - 1) / rm : monthly * n); };
-  const scen = [[0.02, 'แบบระวัง 2%'], [0.04, 'กลาง 4%'], [0.06, 'ดี 6%']];
   return `<div class="card stack" style="margin-top:12px">
     <div class="row between" style="align-items:flex-start"><div><div class="eyebrow">เกษียณ 30 ก.ย. ${h.year}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">อีก ${h.years >= 1 ? nf(h.years, 1) + ' ปี' : Math.max(0, Math.round(h.days / 30.4)) + ' เดือน'}</div></div><button class="btn ghost" data-act="settings" style="padding:4px 0">แก้ปี</button></div>
     <div class="verdict"><b>${band.label}</b> · ผันผวนประมาณ ${band.min ? Math.round(band.min * 100) + '–' : 'ไม่เกิน '}${Math.round(band.max * 100)}% ต่อปี<br><span class="note">${band.note}</span></div>
     ${pv != null ? `<div class="row between"><span>พอร์ตตอนนี้ผันผวนประมาณ <b>${nf(pv * 100, 1)}%</b>/ปี</span><span class="pill ${status[0]}">${status[1]}</span></div>` : ''}
     ${best.length ? `<div><div class="eyebrow" style="margin-bottom:4px">แผนในระดับนี้ที่คุ้มความเสี่ยงที่สุด</div>${best.map(m => { const r = m.r['3Y'] || m.r['1Y']; return `<div class="row between" style="padding:4px 0;font-size:14px"><span>แผน${esc(sh(m.p))}${held.includes(m.p) ? ' <span class="pill acc">ถืออยู่</span>' : ''}</span><span class="num">${r ? pct(r.r, 1) + (m.r['3Y'] ? '/ปี' : ' (1 ปี)') : ''} · ผันผวน ${nf(m.risk.sd * 100, 1)}%</span></div>`; }).join('')}</div>` : ''}
-    <div><div class="eyebrow" style="margin-bottom:4px">ประมาณเงินตอนเกษียณ</div><div class="grid3">${scen.map(([r, l]) => `<div class="mini"><div class="note">${l}/ปี</div><b class="num">${money(fv(r), 0)}</b></div>`).join('')}</div>
-      <p class="note" style="margin:6px 0 0">จากมูลค่าตอนนี้ ${money(V, 0)} บวกเงินนำส่งเดือนละ ${money(monthly, 0)} (เท่าเดือนล่าสุด) อีก ${n} เดือน ยังไม่รวมเงินเดือนที่ขึ้น ตัวเลขใช้ดูภาพรวมเท่านั้น</p></div>
+    <div id="rcProj">${rcProj()}</div>
   </div>`;
 }
 /* ---------- วางแผนเงินเกษียณ: บำเหน็จ/บำนาญ + กบข. + หลังเกษียณ ---------- */
@@ -1280,8 +1276,8 @@ const TEACHER = [
   {k: 'คศ.2 ชำนาญการ', min: 16190, max: 41620, allow: 3500}, {k: 'คศ.3 ชำนาญการพิเศษ', min: 19860, max: 58390, allow: 5600},
   {k: 'คศ.4 เชี่ยวชาญ', min: 24400, max: 69040, allow: 9900}, {k: 'คศ.5 เชี่ยวชาญพิเศษ', min: 29980, max: 76800, allow: 13000},
 ];
-const RP_DEF = {birth: '', start: '', salary: '', raise: 2.5, ceiling: '', teacher: false, rank: 1, promo: {}, oom: null, ret: null, post: 3, dep: 1.5, inf: 2, age: 85, modes: ['interest', 'annuity', 'real'], debts: [], target: '', tPath: 'pension', tMode: 'annuity', income: '', deduct: '', retOther: 0};
-const rpGet = () => { const P = {...RP_DEF, ...store.get('retPlan', {})}; for (const k of ['raise', 'post', 'dep', 'inf', 'age']) if (P[k] === '' || P[k] == null) P[k] = RP_DEF[k]; if (P.ret === '') P.ret = null; if (P.oom === '') P.oom = null; return P; };
+const RP_DEF = {birth: '', start: '', salary: '', raise: 2.5, ceiling: '', teacher: false, rank: 1, promo: {}, oom: null, ret: null, post: 3, inf: 2, path: 'pension', gpfMode: 'lump', gpfYears: 10, gpfSplit: 50, debts: [], target: '', income: '', deduct: '', retOther: 0};
+const rpGet = () => { const P = {...RP_DEF, ...store.get('retPlan', {})}; for (const k of ['raise', 'post', 'inf', 'gpfYears', 'gpfSplit']) if (P[k] === '' || P[k] == null) P[k] = RP_DEF[k]; if (P.ret === '') P.ret = null; if (P.oom === '') P.oom = null; return P; };
 function planCagr(p, yrs = 5) { const a = NAV[p]; if (!a?.length) return null; const e = a[a.length - 1]; const s = a.find(n => n.t >= e.t - yrs * 365.25) || a[0]; const y = (e.t - s.t) / 365.25; return y >= 1 && s.v ? Math.pow(e.v / s.v, 1 / y) - 1 : null; }
 function rpDefaultReturn() { // ผลตอบแทนเฉลี่ยต่อปี 5 ปีของสัดส่วนแผนที่ถืออยู่
   const t = SERIES.length ? SERIES[SERIES.length - 1].t : null; if (t == null) return 4; const parts = valueOf(holdingsAt(t), t).parts; let w = 0, r = 0;
@@ -1315,34 +1311,46 @@ function rpSim(P, oomOverride) {
   const yrs = (ret - now) / 864e5 / 365.25;
   return {ret, yrs, last, avg60, svc, pension, bamnet: last * svc, gpfAll: mine + match + keep, gpfPart: mine + match, keepAmt: keep, dorm: Math.min(pension * 15, 200000), rank, allow: P.teacher ? TEACHER[rank].allow : 0, est: B.est, r, oom, monthlyNow: +P.salary * (0.03 + oom)};
 }
-function rpIncome(L, P, rate) { // รายได้ต่อเดือนจากเงินก้อน L ที่ผลตอบแทน rate (%/ปี)
-  const r = (rate ?? (+P.post || 0)) / 100, i = (+P.inf || 0) / 100, n = Math.max(1, (+P.age || 85) - 60), rm = r / 12, N = n * 12;
-  const interest = L * r / 12;
-  const annuity = rm ? L * rm / (1 - Math.pow(1 + rm, -N)) : L / N;
-  const real = Math.abs(r - i) < 1e-6 ? L / n / 12 : L * (r - i) / (1 - Math.pow((1 + i) / (1 + r), n)) / 12; // ปีแรก แล้วเพิ่มตามเงินเฟ้อทุกปี
-  return {interest, annuity, real, n};
+function rpInst(B, P) { const N = Math.max(1, +P.gpfYears || 10) * 12, rm = (+P.post || 0) / 1200; return B > 0 ? (rm ? B * rm / (1 - Math.pow(1 + rm, -N)) : B / N) : 0; }
+function rpPay(P, R) { // เงินก้อน + รายได้ต่อเดือน ตามทางเลือก (บำเหน็จ/บำนาญ, วิธีรับเงิน กบข.)
+  const path = P.path === 'lump' ? 'lump' : 'pension', gm = ['lump', 'install', 'split'].includes(P.gpfMode) ? P.gpfMode : 'lump';
+  const gpf = path === 'pension' ? R.gpfAll : R.gpfPart; const share = gm === 'lump' ? 1 : gm === 'install' ? 0 : Math.min(100, Math.max(0, +P.gpfSplit || 0)) / 100;
+  const gLump = gpf * share, gInst = gpf - gLump, inst = rpInst(gInst, P), civ = path === 'pension' ? R.pension : 0, civLump = path === 'lump' ? R.bamnet : 0;
+  return {path, gm, gpf, gLump, gInst, inst, years: Math.max(1, +P.gpfYears || 10), civ, civLump, lump: gLump + civLump, monthly: civ + inst};
+}
+function rcProj() { // ประมาณเงิน กบข. ตอนเกษียณ (การ์ดบนสุด) ใช้ข้อมูลเงินเดือนจากส่วนวางแผน ถ้ากรอกแล้ว
+  const scen = [[2, 'แบบระวัง 2%'], [4, 'กลาง 4%'], [6, 'ดี 6%']]; const P = rpGet(); const R = rpSim(P); const M = x => money(x, 0);
+  const head = '<div class="eyebrow" style="margin-bottom:4px">ประมาณเงิน กบข. ตอนเกษียณ</div>';
+  if (R && !R.err) {
+    const v = scen.map(([r]) => rpSim({...P, ret: r}).gpfAll);
+    return `${head}<div class="grid3">${scen.map(([, l], k) => `<div class="mini"><div class="note">${l}/ปี</div><b class="num">${M(v[k])}</b></div>`).join('')}</div>
+      <p class="note" style="margin:6px 0 0">คิดจากเงินเดือน ${M(+P.salary)} ขึ้นรอบละ ${+P.raise}% (1 เม.ย. / 1 ต.ค.)${P.teacher ? ` เพดานตามอันดับ${R.rank !== +P.rank ? ` และวิทยฐานะที่จะได้ (เกษียณที่ ${TEACHER[R.rank].k})` : ` ${TEACHER[R.rank].k}`}` : +P.ceiling > 0 ? ` เพดาน ${M(+P.ceiling)}` : ''} ออมเพิ่ม ${+(R.oom * 100).toFixed(1)}% ถึง 30 ก.ย. ${R.ret.getUTCFullYear() + 543} · เงินเดือนเดือนสุดท้ายราว ${M(R.last)} · ยอดรวมทุกประเภท (ถ้ารับบำเหน็จจะไม่ได้เงินชดเชย/ประเดิม) ตัวเลขใช้ดูภาพรวมเท่านั้น</p>`;
+  }
+  const h = horizon(); if (!h) return '';
+  const lastC = T.filter(x => x.kind === 'contrib').pop(); const monthly = lastC ? r2(T.filter(x => x.t === lastC.t && x.kind === 'contrib').reduce((s, x) => s + x.amount, 0)) : 0;
+  const V = SERIES.length ? SERIES[SERIES.length - 1].value : 0; const n = Math.max(0, Math.round(h.days / 30.44));
+  const fv = r => { const rm = Math.pow(1 + r / 100, 1 / 12) - 1; return V * Math.pow(1 + rm, n) + (rm ? monthly * (Math.pow(1 + rm, n) - 1) / rm : monthly * n); };
+  return `${head}<div class="grid3">${scen.map(([r, l]) => `<div class="mini"><div class="note">${l}/ปี</div><b class="num">${M(fv(r))}</b></div>`).join('')}</div>
+    <p class="note" style="margin:6px 0 0">จากมูลค่าตอนนี้ ${M(V)} บวกเงินนำส่งเดือนละ ${M(monthly)} (เท่าเดือนล่าสุด) อีก ${n} เดือน ยังไม่รวมเงินเดือนที่ขึ้น · <b>กรอกเงินเดือนในส่วน "วางแผนเงินเกษียณ" ด้านล่าง</b> เพื่อคิดรวมการขึ้นเงินเดือนและเพดานเงินเดือน</p>`;
 }
 const TAX_BR = [[150000, 0], [300000, .05], [500000, .10], [750000, .15], [1000000, .20], [2000000, .25], [5000000, .30], [Infinity, .35]];
 function thTax(net) { let t = 0, lo = 0; for (const [hi, r] of TAX_BR) { if (net > lo) t += (Math.min(net, hi) - lo) * r; lo = hi; } return t; }
-function rpMonthly(P, R, path, mode) { // รายได้ต่อเดือน (ตอนเกษียณ) ตามทางเลือก
-  if (path === 'pension') return R.pension + rpIncome(R.gpfAll, P)[mode];
-  return rpIncome(R.gpfPart, P)[mode] + rpIncome(R.bamnet, P, +P.dep || 0)[mode];
-}
 function rpGoalTaxGlide(P, R) {
   const M = x => money(x, 0); const g = $('#rpGoal'), tx = $('#rpTax'), gl = $('#rpGlide'); if (!g) return;
   const need = 'กรอกข้อมูลด้านบน (วันเกิด วันเริ่มรับราชการ เงินเดือน) ก่อน';
-  // 1) เป้าหมาย → % ออมเพิ่มที่ต้องใช้
+  // 1) เป้าหมาย → % ออมเพิ่มที่ต้องใช้ (ตามทางเลือกด้านบน)
   if (!R || R.err) g.innerHTML = `<p class="note" style="margin:0">${need}</p>`;
-  else if (!(+P.target > 0)) g.innerHTML = '<p class="note" style="margin:0">ใส่รายได้ต่อเดือนที่อยากได้หลังเกษียณ (เป็นค่าเงินวันนี้)</p>';
+  else if (!(+P.target > 0)) g.innerHTML = '<p class="note" style="margin:0">ใส่รายได้ต่อเดือนที่อยากได้หลังเกษียณ (เป็นค่าเงินวันนี้) คิดตามทางเลือกรับเงินที่เลือกไว้ด้านบน</p>';
+  else if (P.path === 'lump' && P.gpfMode === 'lump') g.innerHTML = '<p class="note" style="margin:0">ทางเลือกที่เลือกไว้ (บำเหน็จ + รับเงิน กบข. ก้อนเดียว) ไม่มีรายได้รายเดือน ลองเลือกรับบำนาญ หรือทยอยรับเงิน กบข. เป็นงวด</p>';
   else {
-    const inf = (+P.inf || 0) / 100, tgt = +P.target * Math.pow(1 + inf, R.yrs); const at = k => rpMonthly(P, rpSim(P, k), P.tPath, P.tMode);
+    const inf = (+P.inf || 0) / 100, tgt = +P.target * Math.pow(1 + inf, R.yrs); const at = k => rpPay(P, rpSim(P, k)).monthly;
     const m0 = at(0), mMax = at(27); let need2 = null;
     if (m0 >= tgt) need2 = 0; else if (mMax >= tgt) { let lo = 0, hi = 27; for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; at(mid) >= tgt ? hi = mid : lo = mid; } need2 = Math.ceil(hi * 2) / 2; }
-    const cur = +(P.oom ?? S.user.settings.oomperm ?? 0);
-    g.innerHTML = `<div class="kvs" style="grid-template-columns:1fr"><div><span>เป้าหมายคิดเป็นเงินตอนเกษียณ (รวมเงินเฟ้อ)</span><span>${M(tgt)}/เดือน</span></div><div><span>ถ้าไม่ออมเพิ่มเลย จะได้</span><span>${M(m0)}/เดือน</span></div></div>
+    const cur = +(P.oom ?? S.user.settings.oomperm ?? 0); const yN = rpPay(P, R).inst > 0 ? ` (ช่วง ${Math.max(1, +P.gpfYears || 10)} ปีแรกที่ยังรับงวด กบข.)` : '';
+    g.innerHTML = `<div class="kvs" style="grid-template-columns:1fr"><div><span>เป้าหมายคิดเป็นเงินตอนเกษียณ (รวมเงินเฟ้อ)</span><span>${M(tgt)}/เดือน</span></div><div><span>ถ้าไม่ออมเพิ่มเลย จะได้${yN}</span><span>${M(m0)}/เดือน</span></div></div>
       ${need2 === 0 ? `<div class="verdict good">ไม่ต้องออมเพิ่มก็ถึงเป้าแล้ว (เกินมา ${M(m0 - tgt)}/เดือน)</div>`
       : need2 != null ? `<div class="verdict ${need2 <= cur ? 'good' : ''}">ต้องออมเพิ่มอย่างน้อย <b>${need2}%</b> ของเงินเดือน (ตอนนี้ตั้งไว้ ${cur}%) = เงินเดือนตอนนี้ลดลงราว ${M(+P.salary * need2 / 100)}/เดือน ${need2 <= cur ? '· ที่ตั้งไว้ตอนนี้พอแล้ว' : ''}</div>`
-      : `<div class="verdict bad">แม้ออมเพิ่มเต็ม 27% ยังได้ ${M(mMax)}/เดือน ขาดอีก ${M(tgt - mMax)}/เดือน ลอง${[P.tPath === 'lump' ? 'เปลี่ยนเป็นรับบำนาญ' : '', P.tMode === 'interest' ? 'ใช้เงินแบบทยอยถอน' : '', 'ลดเป้า', 'วางแผนรายได้ทางอื่นเพิ่ม'].filter(Boolean).join(' · ')}</div>`}`;
+      : `<div class="verdict bad">แม้ออมเพิ่มเต็ม 27% ยังได้ ${M(mMax)}/เดือน ขาดอีก ${M(tgt - mMax)}/เดือน ลอง${[P.path === 'lump' ? 'เปลี่ยนเป็นรับบำนาญ' : '', P.gpfMode !== 'install' ? 'ทยอยรับเงิน กบข. เป็นงวดทั้งหมด' : '', 'ลดเป้า', 'วางแผนรายได้ทางอื่นเพิ่ม'].filter(Boolean).join(' · ')}</div>`}`;
   }
   // 2) ภาษี
   if (!(+P.salary > 0)) tx.innerHTML = `<p class="note" style="margin:0">${need}</p>`;
@@ -1406,24 +1414,19 @@ function rpDebtRender(P, R) {
   const left = rows.filter(x => x.c.rem > 0);
   if (!left.length) { out.innerHTML = html + '<div class="verdict good">หนี้ทั้งหมดจะหมดก่อนเกษียณ ไม่ต้องใช้เงินก้อนตอนเกษียณมาปิดหนี้</div>'; return; }
   const remAll = left.reduce((s, x) => s + x.c.rem, 0), payAfter = left.reduce((s, x) => s + x.c.pay, 0), intAfter = left.reduce((s, x) => s + x.c.intAfter, 0);
-  const maxLeft = Math.max(...left.map(x => x.c.left)); const mode = P.tMode || 'annuity'; const modeName = {interest: 'กินแต่ดอกผล', annuity: 'ทยอยถอนเท่ากัน', real: 'ทยอยถอนปรับตามเงินเฟ้อ'}[mode];
-  const inc = (gpf, cash) => rpIncome(Math.max(0, gpf), P)[mode] + rpIncome(Math.max(0, cash), P, +P.dep || 0)[mode];
-  // ปิดหนี้: บำนาญใช้เงิน กบข. ปิด · บำเหน็จใช้เงินบำเหน็จก่อน (ดอกเบี้ยเงินฝากต่ำกว่า) ไม่พอค่อยใช้เงิน กบข.
-  const pKeep = R.pension + inc(R.gpfAll, 0), pClose = R.pension + inc(R.gpfAll - remAll, 0);
-  const useCash = Math.min(remAll, R.bamnet); const lKeep = inc(R.gpfPart, R.bamnet), lClose = inc(R.gpfPart - (remAll - useCash), R.bamnet - useCash);
-  const ok = remAll <= R.gpfAll; const okL = remAll <= R.bamnet + R.gpfPart;
-  const sc = [
-    ['รับบำนาญ · ผ่อนหนี้ต่อ', pKeep - payAfter, pKeep, true],
-    ['รับบำนาญ · ใช้เงิน กบข. ปิดหนี้', ok ? pClose : null, ok ? pClose : null, ok],
-    ['รับบำเหน็จ · ผ่อนหนี้ต่อ', lKeep - payAfter, lKeep, true],
-    ['รับบำเหน็จ · ใช้เงินบำเหน็จปิดหนี้', okL ? lClose : null, okL ? lClose : null, okL],
-  ];
-  const best = sc.filter(x => x[1] != null).sort((a, b) => b[1] - a[1])[0];
-  const wRate = left.reduce((s, x) => s + x.c.rem * (+x.d.rate || 0), 0) / remAll; const earn = Math.max(+P.post || 0, +P.dep || 0);
+  const maxLeft = Math.max(...left.map(x => x.c.left)); const Y = rpPay(P, R);
+  // ปิดหนี้: ใช้เงินก้อน (บำเหน็จ / เงิน กบข. ส่วนที่รับก้อน) ก่อน ไม่พอค่อยตัดจากเงิน กบข. ที่ทยอยรับ (งวดจะลดลง)
+  const fromLump = Math.min(remAll, Y.lump), fromInst = Math.min(remAll - fromLump, Y.gInst), canClose = fromLump + fromInst >= remAll - 1;
+  const mClose = Y.civ + rpInst(Y.gInst - fromInst, P), lClose = Y.lump - fromLump;
+  const choice = `${Y.path === 'pension' ? 'บำนาญ' : 'บำเหน็จ'} · กบข. ${{lump: 'รับก้อนเดียว', install: 'ทยอยรับเป็นงวด', split: 'แบ่งรับก้อน + งวด'}[Y.gm]}`;
+  const box = (t, m, l, hi, sub) => `<div style="padding:8px 10px;border:1px solid ${hi ? 'var(--accent)' : 'var(--line)'};border-radius:10px"><div class="row between" style="gap:8px"><b style="font-size:14px">${t}</b></div>
+    <div class="kvs" style="grid-template-columns:1fr;margin-top:4px"><div><span>รายได้ต่อเดือน</span><span class="${m < 0 ? 'down' : ''}">${M(m)}</span></div><div><span>เงินก้อนที่เหลือใช้</span><span>${M(l)}</span></div></div>${sub ? `<p class="note" style="margin:4px 0 0">${sub}</p>` : ''}</div>`;
+  const wRate = left.reduce((s, x) => s + x.c.rem * (+x.d.rate || 0), 0) / remAll; const earn = +P.post || 0;
   html += `<div class="banner" style="display:block"><b>ตอนเกษียณ (${R.ret.getUTCFullYear() + 543}) ยังมีหนี้เหลือ ${M(remAll)}</b><br>ถ้าผ่อนต่อ ต้องจ่ายเดือนละ ${M(payAfter)} ไปอีกราว ${nf(maxLeft / 12, 1)} ปี และเสียดอกเบี้ยอีก ${M(intAfter)}</div>
-    <div class="note" style="margin:0">รายได้ต่อเดือนหลังเกษียณ หลังหักค่าผ่อน (ใช้เงินก้อนแบบ "${modeName}" ตามที่เลือกในส่วนเป้าหมาย)</div>
-    <div class="stack" style="gap:6px">${sc.map(([t, v, after, can]) => `<div class="row between" style="padding:8px 10px;border:1px solid ${best && best[0] === t ? 'var(--accent)' : 'var(--line)'};border-radius:10px;gap:8px"><span style="font-size:14px">${t}${best && best[0] === t ? ' <span class="pill ok">ได้มากสุด</span>' : ''}</span><span style="text-align:right">${can ? `<b>${M(v)}</b>/เดือน${t.includes('ผ่อนหนี้ต่อ') ? `<div class="note" style="margin:0">หนี้หมดแล้ว ${M(after)}</div>` : ''}` : '<span class="note">เงินก้อนไม่พอปิด</span>'}</span></div>`).join('')}</div>
-    <div class="verdict ${wRate > earn ? 'good' : ''}">${wRate > earn ? `ดอกเบี้ยหนี้เฉลี่ย <b>${nf(wRate, 2)}%</b> สูงกว่าผลตอบแทนที่คาดจากเงินก้อน (${nf(earn, 1)}%) <b>เอาเงินก้อนปิดหนี้มักคุ้มกว่า</b> ประหยัดดอกเบี้ยได้ราว ${M(intAfter)} และไม่ต้องกังวลค่างวดหลังเกษียณ` : `ดอกเบี้ยหนี้เฉลี่ย <b>${nf(wRate, 2)}%</b> ต่ำกว่าผลตอบแทนที่คาดจากเงินก้อน (${nf(earn, 1)}%) ในทางตัวเลข<b>ผ่อนต่ออาจคุ้มกว่า</b> แต่ต้องมีรายได้พอจ่ายค่างวดสบายๆ และผลตอบแทนไม่แน่นอน ขณะที่ดอกเบี้ยหนี้แน่นอน`}</div>
+    <div class="note" style="margin:0">คิดตามทางเลือกที่เลือกไว้ด้านบน: ${choice}</div>
+    <div class="stack" style="gap:6px">${box('ผ่อนหนี้ต่อ', Y.monthly - payAfter, Y.lump, false, `หลังหนี้หมด รายได้กลับเป็น ${M(Y.monthly)}/เดือน`)}
+    ${canClose ? box('ใช้เงินก้อนปิดหนี้ตอนเกษียณ', mClose, lClose, wRate > earn, fromInst > 0 ? `เงินก้อนไม่พอ ต้องตัดจากเงิน กบข. ที่ทยอยรับ ${M(fromInst)} งวดจึงลดลง` : '') : `<div class="verdict bad">เงินก้อนและเงิน กบข. ไม่พอปิดหนี้ทั้งหมด (ขาด ${M(remAll - fromLump - fromInst)})</div>`}</div>
+    <div class="verdict ${wRate > earn ? 'good' : ''}">${wRate > earn ? `ดอกเบี้ยหนี้เฉลี่ย <b>${nf(wRate, 2)}%</b> สูงกว่าผลตอบแทนที่คาดของเงิน กบข. หลังเกษียณ (${nf(earn, 1)}%) <b>เอาเงินก้อนปิดหนี้มักคุ้มกว่า</b> ประหยัดดอกเบี้ยได้ราว ${M(intAfter)} และไม่ต้องกังวลค่างวดหลังเกษียณ` : `ดอกเบี้ยหนี้เฉลี่ย <b>${nf(wRate, 2)}%</b> ไม่สูงกว่าผลตอบแทนที่คาด (${nf(earn, 1)}%) ผ่อนต่อแล้วเก็บเงินก้อนไว้ก็พอได้ แต่ต้องมั่นใจว่ารายได้ต่อเดือนพอจ่ายค่างวด`}</div>
     <p class="note" style="margin:0">ก่อนปิดหนี้ด้วยเงินก้อน ควรกันเงินสำรองฉุกเฉินไว้อย่างน้อย 6–12 เดือนของค่าใช้จ่าย และดูว่าหนี้ก้อนไหนดอกเบี้ยสูงสุด ปิดก้อนนั้นก่อน</p>`;
   out.innerHTML = html;
 }
@@ -1447,19 +1450,22 @@ function retirePlanCard() {
       ${TEACHER.map((t, i) => i > +P.rank && i >= 2 ? `<div class="field"><label>ได้ ${t.k.split(' ')[1]} ปี พ.ศ.</label><select class="inp" data-rpp="${i}">${yrOpts(i)}</select></div>` : '').join('')}</div>
       <p class="note" style="margin:0">เงินวิทยฐานะไม่นำมาคิดบำเหน็จบำนาญและไม่หัก กบข. แต่วิทยฐานะที่สูงขึ้นทำให้เพดานเงินเดือนสูงขึ้น (นับตั้งแต่ ม.ค. ของปีที่เลือก)</p>`
       : `<div class="field"><label>เพดานเงินเดือนของระดับ (บาท, ไม่บังคับ)</label><input class="inp num" type="number" inputmode="decimal" data-rp="ceiling" value="${esc(P.ceiling)}" placeholder="เว้นว่าง = ไม่มีเพดาน"></div>`}
-    <details><summary class="note" style="cursor:pointer">หลังเกษียณ: ผลตอบแทน เงินเฟ้อ อายุ</summary><div class="rpgrid" style="margin-top:8px">
-      <div class="field"><label>ผลตอบแทน กบข. ออมต่อ หลังเกษียณ (%/ปี)</label><input class="inp num" type="number" step="0.1" data-rp="post" value="${esc(P.post)}"></div>
-      <div class="field"><label>ดอกเบี้ยเงินฝาก สำหรับเงินบำเหน็จ (%/ปี)</label><input class="inp num" type="number" step="0.1" data-rp="dep" value="${esc(P.dep)}"></div>
-      <div class="field"><label>เงินเฟ้อ (%/ปี)</label><input class="inp num" type="number" step="0.1" data-rp="inf" value="${esc(P.inf)}"></div>
-      <div class="field"><label>วางแผนให้เงินพอถึงอายุ</label><input class="inp num" type="number" data-rp="age" value="${esc(P.age)}"></div></div></details>
+    <hr style="border:0;border-top:1px solid var(--line-2);margin:4px 0">
+    <b>เลือกวิธีรับเงินตอนเกษียณ</b>
+    <div class="rpgrid">
+      <div class="field" style="grid-column:1/-1"><label>เงินจากราชการ</label><select class="inp" data-rp="path"><option value="pension"${P.path === 'pension' ? ' selected' : ''}>รับบำนาญ (รายเดือนตลอดชีวิต)</option><option value="lump"${P.path === 'lump' ? ' selected' : ''}>รับบำเหน็จ (ก้อนเดียว)</option></select></div>
+      <div class="field" style="grid-column:1/-1"><label>เงิน กบข.</label><select class="inp" data-rp="gpfMode"><option value="lump"${P.gpfMode === 'lump' ? ' selected' : ''}>รับก้อนเดียวทั้งหมด</option><option value="install"${P.gpfMode === 'install' ? ' selected' : ''}>ทยอยรับเป็นงวดรายเดือน</option><option value="split"${P.gpfMode === 'split' ? ' selected' : ''}>แบ่งรับก้อนบางส่วน + ทยอยรับที่เหลือ</option></select></div>
+      <div class="field" id="rpYrsF"><label>ทยอยรับนานกี่ปี</label><input class="inp num" type="number" min="1" max="40" inputmode="numeric" data-rp="gpfYears" value="${esc(P.gpfYears)}"></div>
+      <div class="field" id="rpSplitF"><label>รับเป็นก้อน (% ของเงิน กบข.)</label><input class="inp num" type="number" min="0" max="100" inputmode="numeric" data-rp="gpfSplit" value="${esc(P.gpfSplit)}"></div>
+      <div class="field" id="rpPostF"><label>ผลตอบแทนเงิน กบข. ที่ยังไม่ได้รับ (%/ปี)</label><input class="inp num" type="number" step="0.1" inputmode="decimal" data-rp="post" value="${esc(P.post)}"></div>
+      <div class="field"><label>เงินเฟ้อ (%/ปี)</label><input class="inp num" type="number" step="0.1" inputmode="decimal" data-rp="inf" value="${esc(P.inf)}"></div>
+    </div>
     <div id="rpOut"></div>
   </div>
   <div class="card stack" id="rpCard2">
     <h3 style="margin:0">ต้องออมเพิ่มกี่ % ถึงจะได้ตามเป้า</h3>
     <div class="rpgrid">
-      <div class="field"><label>อยากมีรายได้ต่อเดือน (เงินวันนี้)</label><input class="inp num" type="number" inputmode="decimal" data-rp="target" value="${esc(P.target)}" placeholder="เช่น 40000"></div>
-      <div class="field"><label>เลือกรับ</label><select class="inp" data-rp="tPath"><option value="pension"${P.tPath === 'pension' ? ' selected' : ''}>บำนาญ</option><option value="lump"${P.tPath === 'lump' ? ' selected' : ''}>บำเหน็จ</option></select></div>
-      <div class="field" style="grid-column:1/-1"><label>ใช้เงินก้อนแบบ</label><select class="inp" data-rp="tMode"><option value="interest"${P.tMode === 'interest' ? ' selected' : ''}>กินแต่ดอกผล เงินต้นคงเดิม</option><option value="annuity"${P.tMode === 'annuity' ? ' selected' : ''}>ทยอยถอนเท่ากันจนหมด</option><option value="real"${P.tMode === 'real' ? ' selected' : ''}>ทยอยถอนปรับตามเงินเฟ้อ</option></select></div>
+      <div class="field" style="grid-column:1/-1"><label>อยากมีรายได้ต่อเดือน (เงินวันนี้)</label><input class="inp num" type="number" inputmode="decimal" data-rp="target" value="${esc(P.target)}" placeholder="เช่น 40000"></div>
     </div><div id="rpGoal"></div>
     <hr style="border:0;border-top:1px solid var(--line-2);margin:4px 0">
     <h3 style="margin:0">ออมเพิ่มช่วยลดภาษีเท่าไร</h3>
@@ -1475,46 +1481,45 @@ function retirePlanCard() {
 }
 function rpRender() {
   const out = $('#rpOut'); if (!out) return; const P = rpGet(); const R = rpSim(P);
+  const rc = $('#rcProj'); if (rc) rc.innerHTML = rcProj();
+  const gm = P.gpfMode || 'lump'; const vis = (id, on) => { const f = $(id); if (f) f.hidden = !on; };
+  vis('#rpYrsF', gm !== 'lump'); vis('#rpSplitF', gm === 'split'); vis('#rpPostF', gm !== 'lump');
   if (!R) { out.innerHTML = '<p class="note" style="margin:0">กรอกวันเกิด วันเริ่มรับราชการ และเงินเดือน เพื่อดูผลการคำนวณ</p>'; rpGoalTaxGlide(P, null); rpDebtRender(P, null); return; }
   if (R.err) { out.innerHTML = `<p class="note">${esc(R.err)}</p>`; rpDebtRender(P, null); return; }
   const inf = (+P.inf || 0) / 100, toToday = x => x / Math.pow(1 + inf, R.yrs); const M = x => money(x, 0);
-  const A = rpIncome(R.gpfAll, P), Bg = rpIncome(R.gpfPart, P), Bd = rpIncome(R.bamnet, P, +P.dep || 0); const Bi = {interest: Bg.interest + Bd.interest, annuity: Bg.annuity + Bd.annuity, real: Bg.real + Bd.real};
-  const modes = [['interest', 'กินแต่ดอกผล เงินต้นคงเดิม', 'คล้ายฝากออมต่อกับ กบข. แล้วถอนเฉพาะผลตอบแทน เงินต้นยังอยู่เป็นมรดก แต่มูลค่าจริงลดลงตามเงินเฟ้อทุกปี'], ['annuity', `ทยอยถอนเท่ากันทุกเดือนจนหมดตอนอายุ ${+P.age || 85}`, 'คล้ายบริการรับเงินเป็นงวดของ กบข. ได้ต่อเดือนมากกว่า แต่ถ้าอายุยืนเกินที่วางแผน เงินจะหมด'], ['real', `ทยอยถอนแบบปรับเพิ่มตามเงินเฟ้อ จนหมดตอนอายุ ${+P.age || 85}`, 'ปีแรกได้น้อยกว่าแบบเท่ากัน แต่เพิ่มขึ้นทุกปีตามเงินเฟ้อ อำนาจซื้อคงที่ เหมาะถ้ากังวลค่าครองชีพ']];
-  // จุดคุ้มทุน: บำนาญเริ่มได้มากกว่าบำเหน็จเมื่อไหร่ (คิดผลตอบแทนหลังเกษียณด้วย)
-  const extra = R.bamnet + R.gpfPart - R.gpfAll; let be = null; if (extra > 0 && R.pension > 0) { const rm = (+P.post || 0) / 1200; let pv = 0; for (let k = 1; k <= 600; k++) { pv += R.pension / Math.pow(1 + rm, k); if (pv >= extra) { be = k / 12; break; } } }
-  const ageNow = (Date.now() - Date.parse(P.birth)) / 864e5 / 365.25; const noOom = +P.oom > 0 ? rpSim(P, 0) : null;
+  const Y = rpPay(P, R); const yBE = R.ret.getUTCFullYear() + 543;
+  const d1 = Math.min(R.pension * 15, 200000), d2 = Math.max(0, Math.min(R.pension * 15, 400000) - d1), d3 = Math.max(0, Math.min(R.pension * 15, 500000) - d1 - d2);
+  // เงินก้อน
+  const lumpRows = [Y.path === 'lump' ? ['บำเหน็จ (เงินเดือนสุดท้าย × อายุราชการ)', R.bamnet] : null, Y.gLump > 0 ? [`เงิน กบข.${Y.gm === 'split' ? ` ส่วนที่รับก้อน ${+P.gpfSplit}%` : ''}${Y.path === 'lump' ? ' (ไม่ได้เงินชดเชย/ประเดิม)' : ''}`, Y.gLump] : null].filter(Boolean);
+  // รายได้ต่อเดือนเป็นช่วง
+  const per = []; const yr = n => `ต.ค. ${yBE + n - (n ? 0 : 0)}`;
+  if (Y.inst > 0) per.push([`อายุ 60–${60 + Y.years}`, `${yr(0)} – ก.ย. ${yBE + Y.years}`, Y.monthly, [Y.civ ? `บำนาญ ${M(Y.civ)}` : '', `งวด กบข. ${M(Y.inst)}`].filter(Boolean).join(' + ')]);
+  if (Y.civ > 0) per.push([Y.inst > 0 ? `อายุ ${60 + Y.years} ขึ้นไป` : 'อายุ 60 ขึ้นไป', `ตั้งแต่ ${Y.inst > 0 ? `ต.ค. ${yBE + Y.years}` : yr(0)} ตลอดชีวิต`, Y.civ, 'บำนาญ']);
+  else if (Y.inst > 0) per.push([`อายุ ${60 + Y.years} ขึ้นไป`, `ตั้งแต่ ต.ค. ${yBE + Y.years}`, 0, 'ไม่มีรายได้รายเดือนจากราชการ/กบข.']);
+  const extra = R.bamnet - R.keepAmt, be = R.pension > 0 && extra > 0 ? extra / R.pension / 12 : null;
   out.innerHTML = `<hr style="border:0;border-top:1px solid var(--line-2);margin:4px 0">
-    <div class="kvs"><div><span>เกษียณ</span><span>30 ก.ย. ${R.ret.getUTCFullYear() + 543} (อีก ${R.yrs.toFixed(1)} ปี)</span></div>
+    <div class="kvs"><div><span>เกษียณ</span><span>30 ก.ย. ${yBE} (อีก ${R.yrs.toFixed(1)} ปี)</span></div>
       <div><span>อายุราชการตอนเกษียณ</span><span>${R.svc.toFixed(2)} ปี</span></div>
       <div><span>เงินเดือนเดือนสุดท้าย</span><span>${M(R.last)}</span></div>
       <div><span>เงินเดือนเฉลี่ย 60 เดือนสุดท้าย</span><span>${M(R.avg60)}</span></div>
       ${P.teacher ? `<div><span>อันดับตอนเกษียณ</span><span>${TEACHER[R.rank].k}${R.allow ? ` (+วิทยฐานะ ${M(R.allow)}/เดือน)` : ''}</span></div>` : ''}</div>
-    <div class="stack" style="gap:10px">
-      <div class="card stack rpopt"><b>ถ้าเลือกรับบำนาญ</b>
-        <div class="big">${M(R.pension)}<span class="note"> /เดือน ตลอดชีวิต</span></div>
-        <div class="kvs"><div><span>เงินจาก กบข. (ได้ทุกประเภท)</span><span>${M(R.gpfAll)}</span></div><div><span>บำเหน็จดำรงชีพ (ขอรับได้)</span><span>สูงสุด ${M(R.dorm)}</span></div></div>
-        <p class="note" style="margin:0">บำนาญ = เงินเดือนเฉลี่ย 60 เดือน × อายุราชการ ÷ 50 (ไม่เกิน 70%)${R.pension >= R.avg60 * 0.7 - 1 ? ' · ชนเพดาน 70%' : ''}</p></div>
-      <div class="card stack rpopt"><b>ถ้าเลือกรับบำเหน็จ</b>
-        <div class="big">${M(R.bamnet + R.gpfPart)}<span class="note"> ก้อนเดียว</span></div>
-        <div class="kvs"><div><span>บำเหน็จ (เงินเดือนสุดท้าย × อายุราชการ)</span><span>${M(R.bamnet)}</span></div><div><span>เงินจาก กบข. (ไม่ได้เงินชดเชย/ประเดิม)</span><span>${M(R.gpfPart)}</span></div></div>
-        <p class="note" style="margin:0">เสียเงินชดเชยและเงินประเดิมพร้อมผลประโยชน์ราว ${M(R.keepAmt)}</p></div>
-    </div>
-    <div class="banner" style="display:block"><b>เงิน กบข. ตอนเกษียณ ถ้าผลตอบแทนต่างไปจากที่ตั้งไว้</b><br>${[-2, 0, 2].map(d => { const rr = Math.round((R.r * 100 + d) * 10) / 10; const X = rpSim({...P, ret: rr}); return `${d < 0 ? 'ระวัง' : d > 0 ? 'ดี' : 'กลาง'} ${rr}%/ปี: <b>${M(X.gpfAll)}</b> (รับบำเหน็จได้ ${M(X.gpfPart)})`; }).join('<br>')}${R.r > 0.06 ? '<br><span style="color:var(--down)">ผลตอบแทนที่ตั้งไว้สูงกว่า 6% ต่อปี ซึ่งเป็นผลตอบแทนช่วงตลาดดีในอดีต อาจไม่เกิดซ้ำตลอดหลายสิบปี ลองดูกรณี "ระวัง" ประกอบ</span>' : ''}</div>
-    ${be != null ? `<div class="verdict">บำเหน็จได้เงินก้อนมากกว่าบำนาญ ${M(extra)} แต่บำนาญจะจ่ายคืนส่วนต่างนี้ได้หมดในราว <b>${be.toFixed(1)} ปี</b> (คิดผลตอบแทนหลังเกษียณแล้ว) ถ้าคาดว่าจะมีชีวิตอยู่เกินอายุ <b>${Math.ceil(60 + be)} ปี</b> บำนาญจะได้มากกว่า</div>` : extra <= 0 ? '<div class="verdict good">ตามตัวเลขนี้ บำนาญได้เงินก้อนจาก กบข. มากกว่าหรือเท่ากับบำเหน็จอยู่แล้ว และยังได้บำนาญรายเดือนเพิ่ม</div>' : ''}
-    <div class="sec-h" style="margin:6px 0 0"><h3 style="margin:0;font-size:16px">รายได้ต่อเดือนหลังเกษียณ</h3><span class="note">กบข. ออมต่อ ${+P.post}% · เงินฝาก ${+P.dep}%</span></div>
-    <p class="note" style="margin:0">รับบำเหน็จ: คิดว่านำเงินบำเหน็จฝากธนาคาร และฝากเงิน กบข. ไว้กับ กบข. (ออมต่อ) แล้วใช้ผลตอบแทนเป็นค่าใช้จ่ายรายเดือน · รับบำนาญ: ได้บำนาญ + เงิน กบข. ออมต่อ</p>
-    <div class="stack" style="gap:6px">${modes.map(([k, t, d]) => `<details class="rpmode"${(P.modes || []).includes(k) ? ' open' : ''} data-mode="${k}"><summary><b>${t}</b></summary>
-      <div class="rpcols2" style="margin-top:6px"><div><span class="note">รับบำนาญ</span><div class="big2">${M(R.pension + A[k])}<span class="note">/เดือน</span></div><span class="note">บำนาญ ${M(R.pension)} + จาก กบข. ${M(A[k])}</span></div>
-      <div><span class="note">รับบำเหน็จ</span><div class="big2">${M(Bi[k])}<span class="note">/เดือน</span></div><span class="note">บำเหน็จฝากธนาคาร ${M(Bd[k])} + กบข. ออมต่อ ${M(Bg[k])}</span></div></div>
-      <p class="note" style="margin:6px 0 0">${d}${k === 'real' ? ' (ตัวเลขนี้คือปีแรก)' : ''}</p></details>`).join('')}</div>
-    <div class="banner" style="display:block"><b>เทียบเป็นเงินวันนี้ (หักเงินเฟ้อ ${+P.inf}%/ปี)</b><br>บำนาญ ${M(R.pension)} ตอนเกษียณ มีค่าเท่ากับ <b>${M(toToday(R.pension))}</b> ในวันนี้ · เงิน กบข. ${M(R.gpfAll)} เท่ากับ <b>${M(toToday(R.gpfAll))}</b>${noOom ? `<br>ออมเพิ่ม ${+P.oom}% ทำให้เงินเดือนตอนนี้ลดลง ${M(+P.salary * P.oom / 100)}/เดือน แต่เงิน กบข. ตอนเกษียณเพิ่มขึ้น ${M(R.gpfAll - noOom.gpfAll)} (เงินออมเพิ่มนำไปลดหย่อนภาษีได้)` : ''}</div>
+    <div class="card stack rpopt"><b>เงินก้อนตอนเกษียณ</b>
+      <div class="big">${M(Y.lump)}</div>
+      ${lumpRows.length ? `<div class="kvs">${lumpRows.map(([t, v]) => `<div><span>${t}</span><span>${M(v)}</span></div>`).join('')}</div>` : '<p class="note" style="margin:0">ทางเลือกนี้ไม่มีเงินก้อน (รับเป็นรายเดือนทั้งหมด)</p>'}
+      ${Y.path === 'pension' && d1 > 0 ? `<p class="note" style="margin:0">ขอรับ<b>บำเหน็จดำรงชีพ</b>เพิ่มได้ (ไม่บังคับ ไม่ทำให้บำนาญลดลง): ตอนเกษียณ ${M(d1)}${d2 > 0 ? ` · อายุ 65 อีก ${M(d2)}` : ''}${d3 > 0 ? ` · อายุ 70 อีก ${M(d3)}` : ''}</p>` : ''}</div>
+    <div class="card stack rpopt"><b>รายได้ต่อเดือนหลังเกษียณ</b>
+      ${per.length ? `<table class="rptbl"><thead><tr><th>ช่วง</th><th>ต่อเดือน</th></tr></thead><tbody>${per.map(([a, b, v, c]) => `<tr><td><b>${a}</b><div class="note" style="margin:0">${b}<br>${c}</div></td><td><b class="num">${M(v)}</b></td></tr>`).join('')}</tbody></table>`
+      : '<p class="note" style="margin:0">ทางเลือกนี้ไม่มีรายได้รายเดือน ได้เป็นเงินก้อนทั้งหมด</p>'}
+      ${Y.inst > 0 ? `<p class="note" style="margin:0">ทยอยรับเงิน กบข. ${M(Y.gInst)} เป็นงวดรายเดือน ${Y.years} ปี ระหว่างนี้เงินที่ยังไม่ได้รับลงทุนต่อราว ${+P.post}%/ปี รวมรับทั้งหมดราว ${M(Y.inst * Y.years * 12)}</p>` : ''}
+      ${Y.civ > 0 ? `<p class="note" style="margin:0">บำนาญ = เงินเดือนเฉลี่ย 60 เดือน × อายุราชการ ÷ 50 (ไม่เกิน 70%)${R.pension >= R.avg60 * 0.7 - 1 ? ' · ชนเพดาน 70%' : ''}</p>` : ''}</div>
+    ${Y.path === 'pension' ? `<div class="verdict">ถ้าเลือก<b>บำเหน็จ</b>แทน จะได้บำเหน็จ ${M(R.bamnet)} แต่ไม่มีบำนาญ และเสียเงินชดเชย/ประเดิมของ กบข. ราว ${M(R.keepAmt)}${be != null ? ` · บำนาญจะได้คืนเท่าส่วนต่าง (${M(extra)}) ในราว <b>${be.toFixed(1)} ปี</b> ถ้าคาดว่าจะอยู่เกินอายุ ${Math.ceil(60 + be)} ปี บำนาญได้มากกว่า` : ''}</div>`
+      : `<div class="verdict">ถ้าเลือก<b>บำนาญ</b>แทน จะได้ ${M(R.pension)}/เดือนตลอดชีวิต และได้เงินชดเชย/ประเดิมของ กบข. เพิ่มราว ${M(R.keepAmt)}${be != null ? ` · บำนาญจะได้คืนเท่าบำเหน็จส่วนที่เกิน (${M(extra)}) ในราว <b>${be.toFixed(1)} ปี</b> (อายุ ${Math.ceil(60 + be)} ปี)` : ''}</div>`}
+    <div class="banner" style="display:block"><b>เทียบเป็นเงินวันนี้ (หักเงินเฟ้อ ${+P.inf}%/ปี)</b><br>${Y.monthly > 0 ? `รายได้ ${M(Y.monthly)}/เดือน ตอนเกษียณ มีค่าเท่ากับ <b>${M(toToday(Y.monthly))}</b> ในวันนี้` : ''}${Y.monthly > 0 && Y.lump > 0 ? ' · ' : ''}${Y.lump > 0 ? `เงินก้อน ${M(Y.lump)} เท่ากับ <b>${M(toToday(Y.lump))}</b>` : ''}</div>
     <div class="note" style="line-height:1.65"><b>ข้อสังเกต</b><br>
-      • บำนาญจ่ายตลอดชีวิตแต่<b>ไม่ปรับขึ้นตามเงินเฟ้ออัตโนมัติ</b> ยิ่งอายุยืน อำนาจซื้อยิ่งลด ควรมีเงินก้อนส่วนหนึ่งที่ลงทุนให้โตทันเงินเฟ้อ<br>
-      • แบบ "กินแต่ดอกผล" ปลอดภัยเรื่องเงินหมด แต่รายได้ต่อเดือนน้อยสุด และมูลค่าจริงลดลงทุกปี<br>
-      • ผลตอบแทนหลังเกษียณ ${+P.post}% เป็นสมมติฐาน ถ้าต้องการความเสี่ยงต่ำ (เงินฝาก/ตราสารหนี้ระยะสั้น) อาจได้ต่ำกว่านี้${R.est ? '<br>• ยังไม่มีไฟล์ "ดูยอดเงิน" (ตามประเภทเงิน) จึงประมาณสัดส่วนเงินชดเชยเอง นำเข้าไฟล์นี้เพื่อให้แม่นขึ้น' : ''}<br>
+      • บำนาญจ่ายตลอดชีวิตแต่<b>ไม่ปรับขึ้นตามเงินเฟ้ออัตโนมัติ</b> ยิ่งอายุยืน อำนาจซื้อยิ่งลด<br>
+      • วิธีรับเงิน กบข. หลังเกษียณ (ก้อนเดียว ทยอยรับ หรือออมต่อ) เลือกและเปลี่ยนได้ตามเงื่อนไขของ กบข. ตรวจสอบรายละเอียดกับ กบข. อีกครั้ง${R.est ? '<br>• ยังไม่มีไฟล์ "ดูยอดเงิน" (ตามประเภทเงิน) จึงประมาณสัดส่วนเงินชดเชยเอง นำเข้าไฟล์นี้เพื่อให้แม่นขึ้น' : ''}<br>
       • เป็นการประมาณการเพื่อวางแผน ตัวเลขจริงขึ้นกับประวัติเงินเดือนและเวลาราชการจริง ตรวจสอบได้ที่ระบบ Digital Pension ของกรมบัญชีกลาง และ กบข.</div>`;
   rpGoalTaxGlide(P, R); rpDebtRender(P, R);
-  out.querySelectorAll('.rpmode').forEach(d => d.addEventListener('toggle', () => { const Q = rpGet(); const set = new Set(Q.modes || []); d.open ? set.add(d.dataset.mode) : set.delete(d.dataset.mode); store.set('retPlan', {...Q, modes: [...set]}); }));
 }
 function rpBind() {
   const card = $('#rpCard'); if (!card) return; let tm;
@@ -1523,7 +1528,7 @@ function rpBind() {
     else if (el.type === 'checkbox') P[el.dataset.rp] = el.checked;
     else P[el.dataset.rp] = el.type === 'number' || el.tagName === 'SELECT' && el.dataset.rp === 'rank' ? (el.value === '' ? '' : +el.value) : el.value;
     store.set('retPlan', P);
-    if (el.type === 'checkbox' || el.dataset.rp === 'rank') { renderOverview(); return; }
+    if (el.type === 'checkbox' || el.dataset.rp === 'rank' || (el.dataset.rp === 'birth' && !+S.user.settings.retireYear)) { renderOverview(); return; }
     clearTimeout(tm); tm = setTimeout(rpRender, 250); };
   card.addEventListener('input', onIn); $('#rpCard2')?.addEventListener('input', onIn);
   const dc = $('#rpDebt');
