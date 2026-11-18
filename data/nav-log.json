@@ -1,9 +1,11 @@
 {
  "runs": [
   {
-   "at": "2026-11-18T09:09:37Z",
+   "at": "2026-11-18T20:54:22Z",
    "status": "fail",
-   "msg": "ดึงหน้าเว็บ กบข. ไม่สำเร็จ: HTTPError: HTTP Error 403: Forbidden"
+   "msg": "ดึงหน้าเว็บ กบข. ไม่สำเร็จ: HTTPError: HTTP Error 403: Forbidden",
+   "n": 2,
+   "since": "2026-11-18T09:09:37Z"
   },
   {
    "at": "2026-11-18T08:35:39Z",
