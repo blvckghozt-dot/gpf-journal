@@ -1703,7 +1703,7 @@ function navLogCard() {
   const [showAll] = [S.navLogAll];
   const list = showAll ? runs.slice(0, 60) : runs.slice(0, 8);
   return `<div class="sec-h"><h2>อัปเดต NAV อัตโนมัติ</h2><span class="pill ${health[1]}">${health[0]}</span></div>
-  <div class="card stack"><div class="note" style="margin:0">บอทดึง NAV จากเว็บ กบข. วันละ 2 รอบ (ราว 08:47 และ 19:47 น. แต่ GitHub อาจเริ่มช้ากว่านั้นได้หลายชั่วโมง) ${last ? `· รันล่าสุด ${fmt(last.at)}` : ''}${lastNew ? ` · ได้ NAV ใหม่ล่าสุดเมื่อ ${fmt(lastNew.at)} (NAV ${thd(lastNew.date, true)})` : ''}</div>
+  <div class="card stack"><div class="note" style="margin:0">ระบบดึง NAV จากเว็บ กบข. วันละ 2 รอบ (ราว 10:00 และ 22:00 น.) ${last ? `· รันล่าสุด ${fmt(last.at)}` : ''}${lastNew ? ` · ได้ NAV ใหม่ล่าสุดเมื่อ ${fmt(lastNew.at)} (NAV ${thd(lastNew.date, true)})` : ''}</div>
     ${last?.status === 'fail' && !freshNew ? `<div class="banner" style="background:var(--down-soft)">${esc(last.msg || '')} ระหว่างนี้อัปเดตเองได้ด้วยปุ่ม "อัปเดต NAV จากเว็บ กบข." ด้านบน</div>` : ''}
     ${runs.length ? `<div>${list.map(r => { const st = ST[r.status] || [r.status, '']; return `<div class="li"><div class="body"><div class="t" style="font-size:14px">${fmt(r.at)} <span class="pill ${st[1]}">${st[0]}</span>${r.flags?.length ? ' <span class="pill warn">มีข้อสังเกต</span>' : ''}${r.n > 1 ? ` <span class="note">×${r.n} รอบ ตั้งแต่ ${fmt(r.since || r.at)}</span>` : ''}</div><div class="s">${esc(r.msg || '')}</div></div></div>`; }).join('')}</div>
     ${runs.length > 8 ? `<button class="btn ghost" data-act="navlogall">${showAll ? 'ย่อ' : `ดูทั้งหมด (${Math.min(runs.length, 60)})`}</button>` : ''}` : '<p class="note" style="margin:0">ยังไม่มีบันทึกการรัน บอทจะเริ่มบันทึกผลในรอบถัดไป</p>'}
