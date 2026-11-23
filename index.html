@@ -1133,11 +1133,12 @@ function yearRows() {
 }
 function renderHistory() {
   const el = $('#v-history'); if (emptyPortfolio(el)) return;
-  const segs = [['eras', 'แผนในอดีต'], ['month', 'รายเดือน'], ['year', 'รายปี'], ['tx', 'รายการ']];
+  const segs = [['eras', 'แผนในอดีต'], ['day', 'รายวัน'], ['month', 'รายเดือน'], ['year', 'รายปี'], ['tx', 'รายการ']];
   let body = '';
-  if (S.histSeg === 'eras') body = historyEras(); else if (S.histSeg === 'month') body = historyMonths(); else if (S.histSeg === 'year') body = historyYears(); else body = historyTx();
+  if (S.histSeg === 'eras') body = historyEras(); else if (S.histSeg === 'day') body = historyDays(); else if (S.histSeg === 'month') body = historyMonths(); else if (S.histSeg === 'year') body = historyYears(); else body = historyTx();
   el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ประวัติการลงทุน</h2></div><div class="seg" role="group" aria-label="มุมมองประวัติ">${segs.map(([k, l]) => `<button data-hseg="${k}" aria-pressed="${S.histSeg === k}">${l}</button>`).join('')}</div><div style="margin-top:12px" class="stack">${body}</div>`;
   if (S.histSeg === 'month') { const rows = monthRows(); const yr = S.txYear || (rows.length ? rows[rows.length - 1].y : null); const rr = rows.filter(r => S.txYear === 'all' || r.y === yr); barChart($('#mChart'), rr.map(r => ({label: S.txYear === 'all' ? String(r.y).slice(2) : MTH[r.m], v: r.gain, title: `${MTH[r.m]} ${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายเดือน'}); }
+  if (S.histSeg === 'day') { const D = dayData(); if (D.rows.length) barChart($('#dChart'), D.rows.map(r => ({label: String(r.d), v: r.gain, title: `${thd(r.pt.date)}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายวัน'}); }
   if (S.histSeg === 'year') { const rows = yearRows(); barChart($('#yChart'), rows.map(r => ({label: String(r.y), v: r.gain, title: `${r.y}: ${moneyN(r.gain, 2, true)}`})), {yfmt: kfmt, label: 'กำไรขาดทุนรายปี'}); }
 }
 function eraColor(i) { return `var(--s${i % 8 + 1})`; }
@@ -1164,6 +1165,31 @@ function historyEras() {
     ${e.effect ? `<div class="verdict ${e.effect.diff >= 0 ? 'good' : 'bad'}">ผลของการย้ายแผนเมื่อ ${thd(t2d(e.b))}: เงินก้อน ${money(e.effect.lump, 0)} ที่ย้ายมา ${e.isLast ? 'ตอนนี้' : 'ตอนจบช่วง'}มีค่า ${money(e.effect.newV)} ถ้าอยู่แผนเดิม (${esc(e.sw.outs.map(o => sh(o.plan)).join(' + '))}) จะมีค่า ${money(e.effect.oldV)}<br><b class="${cls(e.effect.diff)}">${e.effect.diff >= 0 ? 'ย้ายแล้วได้มากกว่า' : 'ย้ายแล้วได้น้อยกว่า'} ${money(Math.abs(e.effect.diff))}</b>${e.effect.approx ? ' <span class="note">(แผนเดิมใช้ NAV ใกล้วันที่สุดที่มี)</span>' : ''}</div>` : ''}
   </div>`).join('')}
   <p class="note">กำไรแต่ละช่วง = มูลค่าพอร์ตตอนจบช่วง − มูลค่าตอนเริ่มช่วง − เงินนำส่งในช่วง · % คิดแบบ Modified Dietz · ผลตอบแทนต่อปี (IRR) แสดงเฉพาะช่วงที่ยาวตั้งแต่ 1 ปี</p>`;
+}
+function dayMonths() { // เดือนที่มี NAV อย่างน้อย 2 วัน (ดูรายวันได้)
+  const c = {}; for (const s of SERIES) { const d = new Date(s.t * 864e5); const k = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; c[k] = (c[k] || 0) + 1; }
+  return Object.keys(c).filter(k => c[k] >= 5).sort();
+}
+function dayData() {
+  const ms = dayMonths(); const k = ms.includes(S.dayMonth) ? S.dayMonth : ms[ms.length - 1]; if (!k) return {ms, k, rows: []};
+  const [y, m] = k.split('-').map(Number); const a = Date.UTC(y, m - 1, 1) / 864e5, b = Date.UTC(y, m, 0) / 864e5;
+  const pts = SERIES.filter(s => s.t >= a && s.t <= b); let prev = SERIES.filter(s => s.t < a).pop(); const rows = [];
+  for (const pt of pts) { const d = prev ? dietz(prev.t, pt.t) : {V1: pt.value, C: 0, gain: 0, r: null}; rows.push({pt, d: new Date(pt.t * 864e5).getUTCDate(), ...d}); prev = pt; }
+  return {ms, k, y, m, rows};
+}
+function historyDays() {
+  const D = dayData(); if (!D.k) return '<div class="card"><p class="note" style="margin:0">ยังไม่มีข้อมูล NAV รายวัน</p></div>';
+  const lab = k => { const [y, m] = k.split('-').map(Number); return `${MTH[m - 1]} ${String(y + 543).slice(2)}`; };
+  const rr = D.rows; const sum = rr.reduce((s, r) => s + r.gain, 0), sumC = rr.reduce((s, r) => s + r.C, 0), pos = rr.filter(r => r.gain > 0).length;
+  const best = rr.slice().sort((a, b) => b.gain - a.gain)[0], worst = rr.slice().sort((a, b) => a.gain - b.gain)[0];
+  return `<div class="chips">${D.ms.slice().reverse().slice(0, 12).map(k => `<button class="chip" data-dmonth="${k}" aria-pressed="${D.k === k}">${lab(k)}</button>`).join('')}</div>
+  <div class="card"><div class="row between"><div><div class="eyebrow">กำไร/ขาดทุนรวม ${MTH[D.m - 1]} ${D.y + 543}</div><div class="${cls(sum)}" style="font-family:var(--f-display);font-weight:700;font-size:22px">${money(sum, 2, true)}</div></div>
+    <div class="note" style="text-align:right">วันที่บวก ${pos}/${rr.length}${sumC ? `<br>นำส่ง ${money(sumC, 0)}` : ''}</div></div>
+    <div id="dChart" style="margin-top:10px"></div>
+    ${rr.length > 2 ? `<div class="note" style="margin-top:6px">ดีสุด ${thd(best.pt.date)} <span class="${cls(best.gain)}">${moneyN(best.gain, 2, true)}</span> · แย่สุด ${thd(worst.pt.date)} <span class="${cls(worst.gain)}">${moneyN(worst.gain, 2, true)}</span></div>` : ''}</div>
+  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>มูลค่า</th><th>นำส่ง</th><th>กำไร/ขาดทุน</th></tr></thead><tbody>
+  ${rr.slice().reverse().map(r => `<tr><td class="l">${thd(r.pt.date)}</td><td>${moneyN(r.V1)}</td><td>${r.C ? moneyN(r.C, 0) : '–'}</td><td class="${cls(r.gain)}">${moneyN(r.gain, 2, true)}${r.r != null ? `<div style="font-size:12px">${pct(r.r)}</div>` : ''}</td></tr>`).join('')}
+  </tbody></table></div><p class="note" style="margin-bottom:0">แสดงเฉพาะวันที่ กบข. ประกาศ NAV (วันทำการ) กำไรแต่ละวันเทียบกับวันที่มี NAV ก่อนหน้า และหักเงินนำส่งที่เข้ามาออกแล้ว เดือนเก่า ๆ ที่มี NAV แค่สิ้นเดือนหรือรายไตรมาสจะไม่มีให้ดูรายวัน</p></div>`;
 }
 function historyMonths() {
   const rows = monthRows(); const years = [...new Set(rows.map(r => r.y))]; const yr = S.txYear && S.txYear !== 'all' && years.includes(S.txYear) ? S.txYear : (S.txYear === 'all' ? 'all' : years[years.length - 1]);
@@ -2078,6 +2104,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.step) { const i = SERIES.findIndex(s => s.date === S.asOf) + +b.dataset.step; if (SERIES[i]) { S.asOf = SERIES[i].date; S.asOfAuto = i === SERIES.length - 1; render(); } return; }
   if (b.dataset.range) { S.range = b.dataset.range; render(); return; }
   if (b.dataset.explain) return explainSheet(b.dataset.explain);
+  if (b.dataset.dmonth) { S.dayMonth = b.dataset.dmonth; render(); return; }
   if (b.dataset.hseg) { S.histSeg = b.dataset.hseg; S.txYear = null; render(); return; }
   if (b.dataset.year) { S.txYear = b.dataset.year === 'all' ? 'all' : (S.histSeg === 'tx' ? b.dataset.year : +b.dataset.year); render(); return; }
   if (b.dataset.era) { $('#era-' + b.dataset.era)?.scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
