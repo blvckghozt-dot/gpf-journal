@@ -2033,9 +2033,9 @@ async function loadFeeds() {
   try { const r = await fetch('data/news.json', {cache: 'no-cache'}); if (r.ok) { const j = await r.json(); S.news = Array.isArray(j) ? j : (j.items || []); S.digest = Array.isArray(j) ? null : (j.digest || null); S.outlook = Array.isArray(j) ? [] : (j.outlook || []); store.set('news', S.news); store.set('digest', S.digest); store.set('outlook', S.outlook); } } catch {}
 }
 
-/* ---------- ย้ายจาก blvckghozt-dot.github.io → gpf-journal.pages.dev ---------- */
-const HOME_URL = 'https://gpf-journal.pages.dev/', HOME_ORIGIN = 'https://gpf-journal.pages.dev', OLD_ORIGIN = 'https://blvckghozt-dot.github.io';
-const isOldHost = () => location.origin === OLD_ORIGIN;
+/* ---------- ย้ายบ้าน: blvckghozt-dot.github.io / gpf-journal.pages.dev → gpf-journal.mathaday.app ---------- */
+const HOME_URL = 'https://gpf-journal.mathaday.app/', HOME_ORIGIN = 'https://gpf-journal.mathaday.app', OLD_ORIGINS = ['https://blvckghozt-dot.github.io', 'https://gpf-journal.pages.dev'];
+const isOldHost = () => OLD_ORIGINS.includes(location.origin);
 const hasLocalData = () => !!(S.ledger || S.user?.entries?.length || S.user?.checks?.length || Object.keys(S.navDb || {}).length);
 function oldHostMigrate() {
   if (!isOldHost()) return false;
@@ -2044,10 +2044,10 @@ function oldHostMigrate() {
   const el = document.createElement('div'); el.id = 'migrate'; el.style.cssText = 'position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;padding:max(24px,env(safe-area-inset-top)) 16px 32px';
   const paint = (msg = '') => { el.innerHTML = `<div style="max-width:440px;margin:0 auto" class="stack">
     <div class="card stack"><div style="font-size:34px">🏠</div><h3 style="margin:0">GPF Journal ย้ายบ้านแล้ว</h3>
-      <p style="margin:0;line-height:1.7">ลิงก์ใหม่สั้นและจำง่ายกว่าเดิม <b>gpf-journal.pages.dev</b><br>เครื่องนี้มีข้อมูลพอร์ตอยู่ที่ลิงก์เดิม กดปุ่มด้านล่างเพื่อย้ายข้อมูลไปลิงก์ใหม่ (ข้อมูลส่งตรงในเครื่องคุณ ไม่ผ่านที่อื่น)</p>
+      <p style="margin:0;line-height:1.7">ลิงก์ใหม่ของ Math a Day <b>gpf-journal.mathaday.app</b><br>เครื่องนี้มีข้อมูลพอร์ตอยู่ที่ลิงก์เดิม กดปุ่มด้านล่างเพื่อย้ายข้อมูลไปลิงก์ใหม่ (ข้อมูลส่งตรงในเครื่องคุณ ไม่ผ่านที่อื่น)</p>
       <button class="btn block" id="migGo" style="font-size:16px;padding:13px">ย้ายข้อมูลและไปลิงก์ใหม่</button>
       <div id="migMsg" class="note">${msg}</div></div>
-    <div class="card stack"><b>ถ้าปุ่มด้านบนไม่ได้ผล</b><p class="note" style="margin:0">1. กดดาวน์โหลดไฟล์สำรอง 2. เปิด gpf-journal.pages.dev 3. ไปที่ ตั้งค่า → กู้คืนจากไฟล์ แล้วเลือกไฟล์ที่ดาวน์โหลด</p>
+    <div class="card stack"><b>ถ้าปุ่มด้านบนไม่ได้ผล</b><p class="note" style="margin:0">1. กดดาวน์โหลดไฟล์สำรอง 2. เปิด gpf-journal.mathaday.app 3. ไปที่ ตั้งค่า → กู้คืนจากไฟล์ แล้วเลือกไฟล์ที่ดาวน์โหลด</p>
       <button class="btn sec block" id="migFile">ดาวน์โหลดไฟล์สำรอง</button><a class="btn ghost block" href="${HOME_URL}">ไปลิงก์ใหม่</a></div>
     <p class="note">ถ้าติดตั้งแอปไว้บนหน้าจอ ให้ลบไอคอนเดิม แล้วติดตั้งใหม่จากลิงก์ใหม่ (ดูวิธีในเมนู บันทึก → คู่มือการใช้งาน)</p>
     <button class="btn ghost block" id="migLater">ใช้ลิงก์เดิมไปก่อน</button></div>`;
@@ -2073,13 +2073,13 @@ function newHostReceive() {
   try { history.replaceState(null, '', location.pathname); } catch {}
   if (!window.opener) return toast('เปิดจากลิงก์เดิมไม่ได้ ใช้วิธีไฟล์สำรองแทน');
   const onMsg = async e => {
-    if (e.origin !== OLD_ORIGIN || e.data?.type !== 'gpfj-data') return;
+    if (!OLD_ORIGINS.includes(e.origin) || e.data?.type !== 'gpfj-data') return;
     removeEventListener('message', onMsg);
-    try { await applyBackup(e.data.payload); if (e.data.ghToken && !ghToken()) store.set('ghToken', e.data.ghToken); store.set('lastBackup', Date.now()); e.source.postMessage({type: 'gpfj-done'}, OLD_ORIGIN); toast('ย้ายข้อมูลจากลิงก์เดิมเรียบร้อย'); render(); }
-    catch { e.source.postMessage({type: 'gpfj-fail'}, OLD_ORIGIN); toast('ย้ายข้อมูลไม่สำเร็จ'); }
+    try { await applyBackup(e.data.payload); if (e.data.ghToken && !ghToken()) store.set('ghToken', e.data.ghToken); store.set('lastBackup', Date.now()); e.source.postMessage({type: 'gpfj-done'}, e.origin); toast('ย้ายข้อมูลจากลิงก์เดิมเรียบร้อย'); render(); }
+    catch { e.source.postMessage({type: 'gpfj-fail'}, e.origin); toast('ย้ายข้อมูลไม่สำเร็จ'); }
   };
   addEventListener('message', onMsg);
-  window.opener.postMessage({type: 'gpfj-ready'}, OLD_ORIGIN);
+  OLD_ORIGINS.forEach(o => { try { window.opener.postMessage({type: 'gpfj-ready'}, o); } catch {} });   // only the opener's real origin receives it
 }
 
 async function initDb() {
