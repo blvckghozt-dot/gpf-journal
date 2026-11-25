@@ -741,6 +741,7 @@ function addSummaryNav() { // derive NAV point from a statement total when a sin
   for (const s of S.ledger.summary) { if (!s.asOf || !s.total) continue; const t = d2t(s.asOf); const h = holdingsAt(t); const ps = Object.keys(h); if (ps.length !== 1) continue; const p = ps[0]; const near = navAt(p, t); if (near && t - near.t <= 4) continue; const v = r4(s.total[2] / h[p]); (NAV[p] ||= []).push({d: s.asOf, t, v, src: 'summary'}); NAV[p].sort((a, b) => a.t - b.t); }
 }
 function recompute() {
+  setTimeout(usagePing, 3000);
   buildNav();
   if (S.ledger?.txns?.length && !S.ledger.opening) { const o = deriveOpening(S.ledger); if (o) S.ledger.opening = o; } buildTxns(); addSummaryNav(); buildSeries();
   const last = SERIES.length ? SERIES[SERIES.length - 1].date : null;
@@ -1950,6 +1951,20 @@ async function clearData() {
   if (DB) { await enqueue(() => DB.doc('p/ledger').delete()); await enqueue(() => DB.doc('p/user').set(stripUser(S.user))); }
   recompute(); window.Cloud?.touch(); void L;
 }
+/* ตัวนับจำนวนเครื่องที่ใช้งาน: ส่งรหัสสุ่มของเครื่องนี้วันละครั้ง หลังนำเข้าข้อมูลแล้ว ไม่มีชื่อ อีเมล หรือยอดเงิน */
+const USAGE_API = 'https://account.mathaday.app';
+function usagePing() {
+  if (!SA || !S.ledger || !/(^|\.)mathaday\.app$/.test(location.hostname)) return;
+  const day = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Bangkok'}); if (store.get('pingDay') === day) return;
+  let id = store.get('devId'); if (!/^[a-f0-9]{32}$/.test(id || '')) { id = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join(''); store.set('devId', id); }
+  store.set('pingDay', day);
+  fetch(USAGE_API + '/api/ping/gpf-journal', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id})}).then(r => { if (!r.ok) store.set('pingDay', null); }).catch(() => store.set('pingDay', null));
+}
+async function usageStatsHtml() {
+  try { const r = await fetch(USAGE_API + '/api/stats/gpf-journal'); if (!r.ok) throw 0; const j = await r.json();
+    return `<div class="kvs"><div><span>เครื่องที่นำเข้าข้อมูลแล้ว</span><span>${nf(j.devices, 0)}</span></div><div><span>ใช้งานใน 7 วัน</span><span>${nf(j.active7, 0)}</span></div><div><span>ใช้งานใน 30 วัน</span><span>${nf(j.active30, 0)}</span></div><div><span>เครื่องใหม่ใน 7 วัน</span><span>${nf(j.new7, 0)}</span></div></div><p class="note" style="margin:0">นับเป็นเครื่อง/เบราว์เซอร์ (คนเดียวใช้ 2 เครื่องนับ 2) เริ่มนับตั้งแต่ 25 พ.ย. 69</p>`;
+  } catch { return '<p class="note" style="margin:0">ดึงตัวเลขไม่ได้ ลองใหม่ภายหลัง</p>'; }
+}
 function sheetSettings() {
   const st = S.user.settings;
   openSheet('ตั้งค่า', `<div class="stack">
@@ -1959,8 +1974,9 @@ function sheetSettings() {
     ${window.Member?.settingsHtml() || ''}
     ${window.Cloud?.settingsHtml() || ''}
     <button class="btn ghost block" data-act="support">🙏 สนับสนุนผู้พัฒนา / ติดต่อ</button>
-    <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `${window.Cloud?.enabled ? 'ข้อมูลอยู่ในเครื่องนี้ และสำรองบนคลาวด์ของบัญชี Math a Day ไว้ด้วย (ดูด้านบน) ไฟล์สำรองยังใช้ได้เหมือนเดิม' : 'ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง'}${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
+    <div class="card stack"><b>ที่เก็บข้อมูล</b><p class="note" style="margin:0">${SA ? `${window.Cloud?.enabled ? 'ข้อมูลอยู่ในเครื่องนี้ และสำรองบนคลาวด์ของบัญชี Math a Day ไว้ด้วย (ดูด้านบน) ไฟล์สำรองยังใช้ได้เหมือนเดิม' : 'ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต (มีแค่ตัวนับจำนวนเครื่องที่ใช้งาน ส่งรหัสสุ่มวันละครั้ง ไม่มีชื่อหรือยอดเงิน) ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ให้กู้คืนจากไฟล์สำรอง'}${store.get('lastBackup', 0) ? ` · สำรองล่าสุด ${new Date(store.get('lastBackup', 0)).toLocaleDateString('th-TH', {dateStyle: 'medium'})}` : ' · ยังไม่เคยสำรอง'}` : S.mode === 'db' ? 'พอร์ตและรายการที่บันทึกเก็บในบัญชี Claude ของคุณ เห็นได้เฉพาะเจ้าของ เปิดจากมือถือหรือคอมก็เห็นข้อมูลเดียวกัน หากแชร์ลิงก์ให้คนอื่น เขาจะเห็นเฉพาะหน้ากองทุนและข่าว' : 'ตอนนี้เปิดนอกแอป Claude ข้อมูลที่บันทึกจะอยู่ในเบราว์เซอร์นี้เท่านั้น'}</p>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sec" id="bkOut">สำรองข้อมูล (JSON)</button><label class="btn sec" for="bkIn">กู้คืนจากไฟล์</label><input type="file" id="bkIn" accept=".json,application/json" hidden></div></div>
+    ${GH && ghToken() ? '<div class="card stack"><b>ผู้ดูแลแอป: จำนวนผู้ใช้</b><div id="usageBox" class="note">กำลังโหลด…</div></div>' : ''}
     ${GH ? `<details class="card"><summary style="cursor:pointer"><b>ผู้ดูแลแอป: เผยแพร่ NAV ให้ทุกคน</b></summary><div class="stack" style="margin-top:8px">
       <p class="note" style="margin:0">สำหรับเจ้าของ repo <b>${esc(GH.owner)}/${esc(GH.repo)}</b> เท่านั้น ใส่ GitHub token แล้ว NAV ที่คุณอัปเดตในเครื่องนี้จะถูกบันทึกขึ้น <code>data/nav.json</code> ให้ทุกคนที่ใช้ลิงก์นี้เห็นด้วย ส่งเฉพาะ NAV ไม่มีข้อมูลพอร์ต token เก็บในเบราว์เซอร์เครื่องนี้เท่านั้น และไม่อยู่ในไฟล์สำรอง</p>
       <ol class="guide" style="margin:0"><li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token</li><li>Repository access: <b>Only select repositories</b> → เลือก ${esc(GH.repo)}</li><li>Permissions → Repository → <b>Contents: Read and write</b> (อย่างอื่นไม่ต้อง) ตั้งวันหมดอายุตามสะดวก</li><li>คัดลอก token มาวางด้านล่าง</li></ol>
@@ -1971,6 +1987,7 @@ function sheetSettings() {
     <p class="note">GPF Journal ใช้ข้อมูลจากใบแจ้งยอดของคุณและ NAV ที่ กบข. เผยแพร่ ตัวเลขทางการให้ยึดตามแอป My GPF</p></div>`, b => {
     b.querySelectorAll('[data-theme-set]').forEach(x => x.addEventListener('click', () => { st.theme = x.dataset.themeSet; applyTheme(); b.querySelectorAll('[data-theme-set]').forEach(y => y.setAttribute('aria-pressed', y === x)); }));
     $('#setSave').addEventListener('click', async () => { st.oomperm = +$('#oomIn').value || 0; { const y = +$('#retIn').value; st.retireYear = y >= curYearBE() && y <= curYearBE() + 45 ? y : null; } await saveUser(); closeSheet(); toast('บันทึกการตั้งค่าแล้ว'); });
+    if ($('#usageBox')) usageStatsHtml().then(h => { const x = $('#usageBox'); if (x) x.innerHTML = h; });
     $('#bkOut').addEventListener('click', doBackup); window.Member?.bindSettings(closeSheet); window.Cloud?.bind(b);
     $('#ghTokSave')?.addEventListener('click', async () => { const v = $('#ghTok').value.trim(); if (v && !v.startsWith('••')) store.set('ghToken', v); if (!ghToken()) { $('#ghTokRes').textContent = 'ยังไม่ได้ใส่ token'; return; } $('#ghTokRes').textContent = 'กำลังทดสอบ…';
       try { const r = await ghApi(''); if (!r.permissions?.push) throw new Error('token ไม่มีสิทธิ์เขียน repo นี้'); $('#ghTokRes').innerHTML = '<span class="pill ok">ใช้ได้</span> ต่อไปเมื่ออัปเดต NAV จะมีตัวเลือกเผยแพร่ให้ทุกคน'; render(); } catch (e) { store.set('ghToken', ''); $('#ghTokRes').innerHTML = `<span class="pill bad">ใช้ไม่ได้</span> ${esc(e.message || e)}`; } });
