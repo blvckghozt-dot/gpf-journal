@@ -1989,7 +1989,7 @@ async function applyBackup(j) { if (j?.app !== 'gpf-journal') throw new Error('n
 function applyCloud(j) { if (j?.app !== 'gpf-journal') throw new Error('not backup'); S.ledger = j.ledger || null; store.set('ledger', S.ledger); S.user = {entries: j.user?.entries || [], checks: j.user?.checks || [], settings: j.user?.settings || S.user.settings}; store.set('user', S.user); S.navDb = j.navDb || {}; store.set('navDb', S.navDb); S.asOf = null; applyTheme(); recompute(); render(); }
 const backupObj = () => ({app: 'gpf-journal', v: 1, savedAt: Date.now(), ledger: S.ledger, user: stripUser(S.user), navDb: S.navDb});
 async function restoreBackup(file) { try { await applyBackup(JSON.parse(await file.text())); closeSheet(); store.set('lastBackup', Date.now()); toast('กู้คืนข้อมูลแล้ว'); } catch { toast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ GPF Journal'); } }
-function backupDue() { if (!S.ledger) return 0; const last = store.get('lastBackup', 0) || S.ledger.importedAt || 0; const days = Math.floor((Date.now() - last) / 864e5); return days >= 30 ? days : 0; }
+function backupDue() { if (!S.ledger) return 0; if (window.Cloud?.enabled) { let at = 0; try { at = new Date(JSON.parse(localStorage.getItem('gpfj:cloud:at'))).getTime() || 0; } catch {} if (Date.now() - at < 30 * 864e5) return 0; } const last = store.get('lastBackup', 0) || S.ledger.importedAt || 0; const days = Math.floor((Date.now() - last) / 864e5); return days >= 30 ? days : 0; }
 function applyTheme() { const th = S.user.settings.theme || store.get('theme', 'system'); store.set('theme', th); if (th === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); }
 
 /* ---------- persistence ---------- */
