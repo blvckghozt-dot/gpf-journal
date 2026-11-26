@@ -65,6 +65,8 @@
 | ไฟล์ | หน้าที่ |
 |---|---|
 | `index.html` | ตัวแอปทั้งหมด |
+| `rules.js` | เกณฑ์ภาษี (`TAX_RULES[ปี]`) และเกณฑ์เกษียณ พร้อมข้อความ "รู้หรือไม่" และแหล่งที่มา — ปีภาษีใหม่แก้ที่ไฟล์นี้ที่เดียว |
+| `tax.js` + `scripts/test-tax.js` | สูตรคำนวณภาษี และชุดทดสอบ (`node scripts/test-tax.js` ต้องผ่านทุกข้อก่อน deploy) |
 | `data/nav.json` | NAV ที่ดึงอัตโนมัติ (GitHub Actions เขียนให้) |
 | `data/news.json` | ข่าว (ว่างไว้ ใส่เองได้ รูปแบบดูในโค้ด `renderNews`) |
 | `vendor/` | ตัวอ่าน PDF (pdf.js, Apache-2.0) |
