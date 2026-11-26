@@ -1,6 +1,15 @@
 {
  "runs": [
   {
+   "at": "2026-11-26T03:57:53Z",
+   "src": "office-pc",
+   "status": "new",
+   "date": "2569-11-24",
+   "plans": 14,
+   "flags": [],
+   "msg": "บันทึก NAV วันที่ 2569-11-24 14 แผน"
+  },
+  {
    "at": "2026-11-25T08:20:34Z",
    "src": "office-pc",
    "status": "new",
