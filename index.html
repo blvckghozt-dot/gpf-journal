@@ -898,6 +898,40 @@ async function proRefresh() {
   store.set('pro', g?.paid ? {expires: g.expires} : null);
   if (isPro() !== was) render();
 }
+/* ---------- เตือนบันทึกเงินนำส่ง หลังเงินเดือนออก ---------- */
+// วันจ่ายเงินเดือนข้าราชการ [รอบ 1, รอบ 2] ของ ม.ค.–ธ.ค. ตามประกาศกรมบัญชีกลาง · ปีที่ยังไม่ได้ใส่ใช้ค่าประมาณ (16, 27)
+const PAYDAYS = {2569: [[16, 27], [16, 24], [16, 26], [16, 27], [15, 26], [16, 25], [16, 23], [14, 26], [16, 25], [16, 27], [16, 25], [16, 25]]};
+const PAY_LAG = 3; // ยอดขึ้นใน My GPF หลังเงินเดือนออกประมาณ 2–3 วัน
+function payRounds() {
+  if (S.user.settings.payRounds) return S.user.settings.payRounds;
+  // เดาจากประวัติ: ใน 4 เดือนล่าสุด มีอย่างน้อย 2 เดือนที่นำส่งทั้งกลางเดือนและสิ้นเดือน
+  const by = {}; for (const x of T) if (x.kind === 'contrib') (by[x.date.slice(0, 7)] ||= new Set()).add(+x.date.slice(8));
+  const two = Object.keys(by).sort().slice(-4).filter(k => { const d = [...by[k]]; return d.some(v => v >= 10 && v < 20) && d.some(v => v >= 20); });
+  return two.length >= 2 ? 2 : 1;
+}
+// วันเงินเดือนออกล่าสุดที่ยอดน่าจะขึ้นแล้ว
+function lastPay(n) {
+  const today = todayD(), now = d2t(today); let y = +today.slice(0, 4), m = +today.slice(5, 7);
+  for (let k = 0; k < 3; k++) {
+    const known = PAYDAYS[y]?.[m - 1]; const [d1, d2] = known || [16, 27];
+    for (const [round, day] of n === 2 ? [[2, d2], [1, d1]] : [[2, d2]]) {
+      const date = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (d2t(date) + PAY_LAG <= now) return {date, t: d2t(date), round, known: !!known};
+    }
+    if (--m < 1) { m = 12; y--; }
+  }
+  return null;
+}
+function payCard() {
+  const n = payRounds(); const p = lastPay(n); if (!p || store.get('payDismiss', '') === p.date) return '';
+  // เผื่อวันจริงคลาดจากปฏิทินได้ 4 วัน
+  const done = t => t >= p.t - 4;
+  if (T.some(x => x.kind === 'contrib' && done(x.t)) || S.user.entries.some(e => e.type === 'contrib' && done(d2t(e.date)))) return '';
+  return `<div class="card stack" id="payCard" style="margin-top:8px;background:var(--warn-soft)">
+    <div><b>🔔 อย่าลืมบันทึกเงินนำส่ง</b><br>เงินเดือน${n === 2 ? ` รอบ ${p.round} ` : ''}ออก${p.known ? '' : 'ราว'} ${thd(p.date)} แล้ว ยอดนำส่งจะขึ้นในแอป My GPF หลังเงินเดือนออกประมาณ 2–3 วัน เห็นยอดแล้วบันทึกที่นี่</div>
+    <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn" data-act="payrec" data-date="${p.date}">บันทึกเงินนำส่ง</button><button class="btn sec" data-act="payhide" data-date="${p.date}">ซ่อนรอบนี้</button></div>
+    <button class="link" data-act="payrounds" data-n="${n === 2 ? 1 : 2}" style="align-self:flex-start;text-align:left">${n === 2 ? 'ฉันรับเงินเดือนเดือนละครั้งเดียว' : 'ฉันรับเงินเดือนเดือนละ 2 รอบ'}</button></div>`;
+}
 function emptyPortfolio(el) {
   if (S.mode === 'loading') { el.innerHTML = `<div class="card stack" style="margin-top:8px"><div class="skel" style="width:40%"></div><div class="skel" style="height:40px;width:70%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><p class="note" style="margin:0">กำลังโหลดพอร์ตของคุณ…</p></div>`; return true; }
   if (T.length) return false;
@@ -1082,6 +1116,7 @@ function renderHome() {
   const parts = Object.entries(v.parts).sort((a, b) => b[1].value - a[1].value);
   const est = parts.some(([p, o]) => o.navDate !== S.asOf);
   el.innerHTML = `${installCard()}
+  ${payCard()}
   ${!SA && S.mode === 'local' && S.ledger ? `<div class="banner" style="margin-top:8px">กำลังแสดงข้อมูลที่จำไว้ในเครื่องนี้ การบันทึกใหม่จะเก็บในเครื่องนี้เท่านั้น</div>` : ''}
   ${SA && backupDue() ? `<div class="banner info" style="margin-top:8px"><span>ไม่ได้สำรองข้อมูลมา ${backupDue()} วัน ข้อมูลอยู่ในเบราว์เซอร์นี้เครื่องเดียว</span><button class="btn ghost" data-act="backup" style="margin-left:auto;padding:0 4px">สำรอง</button></div>` : ''}
   ${ledgerIssues(S.ledger).filter(i => i.level === 'bad').map(i => `<div class="banner" style="margin-top:8px;background:var(--down-soft)"><span>${esc(i.text)}</span><button class="btn ghost" data-act="import" style="margin-left:auto;padding:0 4px;white-space:nowrap">นำเข้าเพิ่ม</button></div>`).join('')}
@@ -1997,16 +2032,16 @@ function openSheet(title, html, onMount) {
 }
 const closeSheet = () => $('#sheetRoot').innerHTML = '';
 function planOptions(sel) { return PLANS.filter(p => !['เชิงรุก 20', 'เชิงรุก 75'].includes(p)).map(p => `<option value="${esc(p)}" ${p === sel ? 'selected' : ''}>แผน${esc(p)}</option>`).join(''); }
-function sheetContrib() {
+function sheetContrib(date) {
   const lastC = T.filter(x => x.kind === 'contrib').pop(); const lastAmt = lastC ? r2(T.filter(x => x.t === lastC.t && x.kind === 'contrib').reduce((s, x) => s + x.amount, 0)) : '';
-  const nextDate = todayD();
+  const nextDate = date || todayD();
   openSheet('บันทึกเงินนำส่ง', `<div class="stack">
     <div class="field"><label for="cDate">วันที่ กบข. บันทึกเงินนำส่ง</label><input class="inp" id="cDate" type="date" value="${beToIso(nextDate)}"><span class="hint" id="cDateTh"></span></div>
     <div class="field"><label for="cAmt">จำนวนเงินรวม (บาท)</label><input class="inp num" id="cAmt" type="number" inputmode="decimal" step="0.01" value="${lastAmt}"><span class="hint">รวมเงินสะสม สมทบ ชดเชย และส่วนเพิ่ม เดือนก่อน ${moneyN(lastAmt || 0)}</span></div>
     <div id="cPrev" class="card"></div>
     <details><summary class="note" style="cursor:pointer">กรอกจำนวนหน่วยจาก My GPF เอง (ไม่บังคับ)</summary><div id="cUnits" class="stack" style="margin-top:8px"></div></details>
     <button class="btn block" id="cSave">บันทึก</button></div>`, b => {
-    const upd = () => { $('#cDateTh').textContent = `${thd(isoToBe($('#cDate').value), true)} · ดูได้จากประวัติในแอป My GPF ปกติเป็นวันเงินเดือนออก`; const t = d2t(isoToBe($('#cDate').value)); const amt = +$('#cAmt').value || 0; const mix = mixAt(t) || {}; let h = ''; let est = false; let uh = '';
+    const upd = () => { $('#cDateTh').textContent = `${thd(isoToBe($('#cDate').value), true)} · ดูได้จากประวัติในแอป My GPF ปกติเป็นวันเงินเดือนออก ยอดจะขึ้นหลังจากนั้นประมาณ 2–3 วัน`; const t = d2t(isoToBe($('#cDate').value)); const amt = +$('#cAmt').value || 0; const mix = mixAt(t) || {}; let h = ''; let est = false; let uh = '';
       for (const [p, w] of Object.entries(mix)) { const ex = navExact(p, t); const n = ex || navAt(p, t); if (!ex) est = true; const a = r2(amt * w); h += `<div class="row between" style="font-size:13.5px;padding:3px 0"><span>แผน${esc(sh(p))} ${Object.keys(mix).length > 1 ? `<span class="muted">${Math.round(w * 100)}%</span>` : ''}</span><span class="mono">${nf(a)} ÷ ${n ? nf(n.v, 4) : '—'} = <b>${n ? nf(a / n.v, 4) : '—'}</b> หน่วย</span></div>`; uh += `<div class="field"><label for="u_${esc(p)}">หน่วยแผน${esc(sh(p))}</label><input class="inp mono" data-unit="${esc(p)}" id="u_${esc(p)}" type="number" step="0.0001" inputmode="decimal" placeholder="${n ? nf(a / n.v, 4) : ''}"></div>`; }
       $('#cPrev').innerHTML = `<div class="eyebrow" style="margin-bottom:4px">แบ่งตามสัดส่วนแผนปัจจุบัน</div>${h || '<p class="note">ยังไม่รู้สัดส่วนแผน นำเข้า PDF ก่อน</p>'}${est ? `<p class="note" style="margin:6px 0 0"><span class="pill warn">NAV ประมาณ</span> ยังไม่มี NAV ของวันนี้ ใช้ราคาล่าสุดไปก่อน เมื่ออัปเดต NAV แล้วหน่วยจะคำนวณใหม่ให้เอง</p>` : ''}`;
       if (!$('#cUnits').dataset.k || $('#cUnits').dataset.k !== Object.keys(mix).join()) { $('#cUnits').innerHTML = uh; $('#cUnits').dataset.k = Object.keys(mix).join(); } };
@@ -2402,6 +2437,9 @@ document.addEventListener('click', async e => {
   if (act === 'installnow') { if (INSTALL_EVT) { INSTALL_EVT.prompt(); try { await INSTALL_EVT.userChoice; } catch {} INSTALL_EVT = null; render(); } else sheetGuide('install'); return; }
   if (act === 'backup') return doBackup();
   if (act === 'opening') return sheetOpening();
+  if (act === 'payrec') return sheetContrib(b.dataset.date);
+  if (act === 'payhide') { store.set('payDismiss', b.dataset.date); render(); return; }
+  if (act === 'payrounds') { S.user.settings.payRounds = +b.dataset.n; await saveUser(); render(); toast(+b.dataset.n === 2 ? 'จะเตือนเดือนละ 2 รอบ' : 'จะเตือนเดือนละครั้ง'); return; }
   if (act === 'chkhide') { store.set('chkDismiss', b.dataset.sig); render(); return; }
   if (act === 'checklist') return openSheet('ความครบถ้วนของข้อมูล', checklistCard(true));
   if (act === 'settings') return sheetSettings();
@@ -2425,7 +2463,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
   recompute();
   initDb();
   proRefresh();
-  addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') proRefresh(); });
+  addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; proRefresh(); if (S.tab === 'home' && S.mode !== 'loading') render(); });
 })();
 
 </script>
