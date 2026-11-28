@@ -317,6 +317,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <main class="wrap" id="main">
   <section id="v-home" data-view></section>
   <section id="v-history" data-view hidden></section>
+  <div id="proNote" hidden></div>
   <div class="seg plan-seg" id="planSeg" hidden><button data-pseg="overview">🧭 ความเสี่ยง</button><button data-pseg="retire">🏖️ เกษียณ</button><button data-pseg="tax">🧾 ภาษี</button></div>
   <section id="v-overview" data-view hidden></section>
   <section id="v-tax" data-view hidden></section>
@@ -607,7 +608,7 @@ function renderSupport() {
   const row = (k, v, extra = '') => `<div class="row between" style="gap:10px;padding:10px 0;border-top:1px dashed var(--line)"><span class="note" style="margin:0">${k}</span><span style="text-align:right"><b>${v}</b>${extra}</span></div>`;
   el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>สนับสนุนผู้พัฒนา</h2></div>
   <div class="card stack" style="text-align:center">
-    <p style="margin:0;line-height:1.75">หวังว่า GPF Journal จะเป็นประโยชน์กับเพื่อนสมาชิก กบข. ทุกท่านนะครับ ☕<br>แอปนี้<b>ใช้ฟรีทุกฟีเจอร์</b> ถ้าใช้แล้วถูกใจ สามารถสนับสนุนได้ตามความสมัครใจ เพื่อเป็นกำลังใจและใช้ในการอัปเดตข่าว อัปเดต NAV และพัฒนาระบบอย่างต่อเนื่อง<br>ขอบคุณสำหรับกำลังใจครับ 🙏</p>
+    <p style="margin:0;line-height:1.75">หวังว่า GPF Journal จะเป็นประโยชน์กับเพื่อนสมาชิก กบข. ทุกท่านนะครับ ☕<br>ตอนนี้<b>ใช้ฟรีทุกฟีเจอร์</b> (เมนูกองทุน วางแผน และข่าว ใช้ฟรีถึง 31 ธ.ค. 2569) ถ้าใช้แล้วถูกใจ สามารถสนับสนุนได้ตามความสมัครใจ เพื่อเป็นกำลังใจและใช้ในการอัปเดตข่าว อัปเดต NAV และพัฒนาระบบอย่างต่อเนื่อง<br>ขอบคุณสำหรับกำลังใจครับ 🙏</p>
     ${SUPPORT.promptpay ? `<div class="seg">${SUPPORT.amounts.map(a => `<button data-supamt="${a}" aria-pressed="${a === supAmt}">${a ? '฿' + a : 'ระบุเอง'}</button>`).join('')}</div>
     <div id="supQr" style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;width:min(250px,68vw);margin:0 auto"></div>
     <b style="font-size:17px">${supAmt ? supAmt + ' บาท' : 'ระบุจำนวนได้ในแอปธนาคาร'}</b>
@@ -863,7 +864,39 @@ function render() {
   { const tb = $('.tabbar'); if (tb) document.documentElement.style.setProperty('--tabh', tb.offsetHeight + 'px'); }
   const lastNav = NAVDATES[NAVDATES.length - 1];
   $('#hdrSub').textContent = lastNav ? `NAV ล่าสุด ${thd(lastNav, true)}` : 'สมุดบัญชี กบข. ส่วนตัว';
-  views[vid]();
+  if (!proGate()) views[vid]();
+}
+
+/* ---------- Pro: เมนูกองทุน วางแผน ข่าว (ใช้ฟรีถึง 31 ธ.ค. 2569) ---------- */
+// เป็นการล็อกแบบเบาในเบราว์เซอร์ · สิทธิ์มาจากศูนย์บัญชี และจำไว้ในเครื่องเพื่อใช้ตอนออฟไลน์
+const PRO_TABS = ['funds', 'plan', 'news'];
+const PRO_START = Date.parse('2027-01-01T00:00:00+07:00');
+const PRO_ACC = 'https://account.mathaday.app';
+const isPro = () => !SA || Date.now() < PRO_START || (store.get('pro', null)?.expires || 0) > Date.now();
+// แสดงข้อความแจ้ง หรือหน้าล็อก · คืน true เมื่อล็อกอยู่
+function proGate() {
+  const box = $('#proNote'); const gated = SA && PRO_TABS.includes(S.tab); const locked = gated && !isPro();
+  box.hidden = !(locked || (gated && Date.now() < PRO_START));
+  if (box.hidden) { box.innerHTML = ''; return false; }
+  const why = 'การอัปเดตข่าวและ NAV มีต้นทุน';
+  if (!locked) { box.innerHTML = `<div class="banner" style="display:block;margin-top:8px;background:var(--warn-soft)"><b>📢 เมนูกองทุน วางแผน และข่าว จะเป็นฟีเจอร์ Pro</b><br>${why} จึงเปิดให้ใช้ฟรีถึง 31 ธ.ค. 2569</div>`; return false; }
+  const back = encodeURIComponent(location.origin + location.pathname + location.hash);
+  box.innerHTML = `<div class="card stack" style="margin-top:12px;text-align:center"><h2>🔒 เมนูนี้เป็นฟีเจอร์ Pro</h2>
+    <p class="note" style="margin:0">${why} เมนูกองทุน วางแผน และข่าว จึงเปิดเฉพาะสมาชิก Pro ส่วนพอร์ตและการบันทึกของคุณยังใช้ได้ฟรีเหมือนเดิม</p>
+    <a class="btn block" href="${PRO_ACC}/pricing?return=${back}">ดูราคา / สมัคร Pro</a>
+    <a class="btn sec block" href="${PRO_ACC}/?return=${back}">สมัครแล้ว เข้าสู่ระบบ</a></div>`;
+  for (const s of document.querySelectorAll('[data-view]')) s.hidden = true;
+  $('#planSeg').hidden = true; document.documentElement.removeAttribute('data-resbar');
+  return true;
+}
+async function proRefresh() {
+  if (!SA) return;
+  if (!window.MathADay) await new Promise(r => { const s = document.createElement('script'); s.src = PRO_ACC + '/sdk.js'; s.onload = r; s.onerror = () => { s.remove(); r(); }; document.head.appendChild(s); });
+  const x = await window.MathADay?.entitlements?.(true);
+  if (!x) return;                                            // ออฟไลน์: ใช้สิทธิ์ที่จำไว้
+  const g = x.signedIn ? x.apps?.gpf : null, was = isPro();
+  store.set('pro', g?.paid ? {expires: g.expires} : null);
+  if (isPro() !== was) render();
 }
 function emptyPortfolio(el) {
   if (S.mode === 'loading') { el.innerHTML = `<div class="card stack" style="margin-top:8px"><div class="skel" style="width:40%"></div><div class="skel" style="height:40px;width:70%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><p class="note" style="margin:0">กำลังโหลดพอร์ตของคุณ…</p></div>`; return true; }
@@ -1618,8 +1651,7 @@ function rbSet(P, R) {
   s.textContent = Y.monthly > 0 ? [Y.civ ? 'บำนาญ' : '', Y.inst ? 'งวด กบข.' : ''].filter(Boolean).join(' + ') + ` · เกษียณ ${R.ret.getUTCFullYear() + 543}` : 'ทางเลือกนี้ได้เป็นเงินก้อนทั้งหมด';
 }
 
-/* ---------- เมนูภาษี (ฟีเจอร์ Pro) ---------- */
-const isPro = () => true; // TODO: ต่อกับระบบสิทธิ์ของศูนย์บัญชี (account.mathaday.app) — ตอนนี้เปิดให้ทุกคน
+/* ---------- เมนูภาษี ---------- */
 const TR = () => TAX_RULES[TAX_YEAR];
 const TP_DEF = {mode: 'monthly', salary: '', allow: '', other: '', annual: '', wht: '', gpfMode: 'auto', gpfManual: '', ans: {}, v: {}, all: false};
 const tpGet = () => { const s = store.get('tax', {}) || {}; return {...TP_DEF, ...s, ans: {...(s.ans || {})}, v: {...(s.v || {})}}; };
@@ -1658,7 +1690,6 @@ function tpItemHtml(it, P) {
 }
 function renderTax() {
   const el = $('#v-tax'); const R = TR();
-  if (!isPro()) { el.innerHTML = `<div class="card stack" style="margin-top:12px;text-align:center"><h2>🧾 ภาษี เป็นฟีเจอร์ Pro</h2><p class="note">สมัคร Pro เพื่อใช้ตัวคำนวณภาษีและวางแผนลดหย่อน</p></div>`; return; }
   const P = tpGet(); const I = tpIncome(P); S.taxOpen ||= new Set(['inc', 'q']);
   const op = k => S.taxOpen.has(k) ? ' open' : '';
   const rp = rpGet(); const G = tpGpf(P, I); const o = curOom();
@@ -2393,6 +2424,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
   if (S.ledger || SA) S.mode = 'cached';
   recompute();
   initDb();
+  proRefresh();
+  addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') proRefresh(); });
 })();
 
 </script>
