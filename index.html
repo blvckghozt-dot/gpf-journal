@@ -1985,12 +1985,7 @@ function renderRecord() {
   const stt = {ok: '', dup: '<span class="pill">ซ้ำกับ PDF · ไม่นับซ้ำ</span>', nonav: '<span class="pill bad">ไม่มี NAV</span>', nomix: '<span class="pill bad">ไม่รู้สัดส่วนแผน</span>'};
   const lastCheck = [...S.user.checks].sort((a, b) => b.date.localeCompare(a.date))[0];
   const daysOld = lastD ? Math.round((d2t(todayD()) - d2t(lastD))) : 99;
-  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>ข้อมูล NAV</h2><span class="pill ${daysOld <= 5 ? 'ok' : 'warn'}">${daysOld <= 5 ? 'เป็นปัจจุบัน' : `ผ่านมา ${daysOld} วัน`}</span></div>
-  <div class="card stack"><div class="row between"><div><div class="eyebrow">NAV ล่าสุดในแอป</div><b style="font-family:var(--f-display);font-size:18px">${thd(lastD, true)}</b><div class="note">${ld ? `${{gpf: 'ดึงจากเว็บ กบข.', auto: 'อัปเดตอัตโนมัติ', manual: 'วางข้อความ', excel: 'นำเข้า Excel'}[ld.source] || ld.source}${ld.savedAt ? ' · บันทึก ' + new Date(ld.savedAt).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short'}) : ''}` : 'ข้อมูลตั้งต้นจากไฟล์ Excel ของ กบข.'}</div></div></div>
-    <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button>
-    ${GH && ghToken() ? (() => { const u = unpublishedNav(); return u.length ? `<button class="btn sec block" data-act="navpublish">เผยแพร่ NAV ที่บันทึกในเครื่องให้ทุกคน (${u.length} วัน)</button>` : '<p class="note" style="margin:0">โหมดเจ้าของแอป: NAV ในเครื่องนี้เผยแพร่ให้ทุกคนครบแล้ว</p>'; })() : ''}</div>
-  ${navLogCard()}
-  <div class="sec-h"><h2>บันทึกรายการ</h2></div>
+  el.innerHTML = `<div class="sec-h" style="margin-top:12px"><h2>บันทึกรายการ</h2></div>
   <div class="stack">
     ${toolBtn('contrib', 'เงินนำส่งเดือนนี้', 'แอปแบ่งเข้าแผนและคำนวณหน่วยให้', '<path d="M12 5v14M5 12h14"/>')}
     ${toolBtn('switch', 'แจ้งเปลี่ยนแผน', 'ย้ายทั้งพอร์ตไปแผนใหม่หรือผสมเอง', '<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}
@@ -2002,6 +1997,11 @@ function renderRecord() {
   </div>
   <div class="sec-h"><h2>รายการที่บันทึกเอง</h2><span class="note">${ents.length} รายการ</span></div>
   <div class="card">${ents.length ? ents.map(e => `<div class="li"><div class="ic ${e.type === 'switch' ? 'sw' : 'in'}">${e.type === 'switch' ? '⇄' : e.type === 'units' ? '±' : '+'}</div><div class="body"><div class="t">${e.type === 'contrib' ? 'เงินนำส่ง ' + moneyN(e.amount) : e.type === 'switch' ? 'เปลี่ยนแผน → ' + esc(Object.keys(e.to || {}).map(sh).join(' + ')) : 'ปรับหน่วยให้ตรง My GPF'} ${stt[e._status] || ''} ${e._est && e._status === 'ok' ? '<span class="pill warn">NAV ประมาณ</span>' : ''}</div><div class="s">${thd(e.date, true)}${e._rows?.length ? ' · ' + e._rows.map(r => `${sh(r.plan)} ${r.units > 0 ? '+' : ''}${nf(r.units, 4)} หน่วย`).join(', ') : ''}</div></div><button class="btn ghost" data-del="${e.id}" aria-label="ลบรายการ">ลบ</button></div>`).join('') : '<p class="note" style="margin:0">เดือนที่ยังไม่มีใน PDF ให้บันทึกที่นี่ เมื่อนำเข้า PDF ปีใหม่ แอปจะใช้ตัวเลขจาก PDF แทนอัตโนมัติ</p>'}</div>
+  <div class="sec-h"><h2>ข้อมูล NAV</h2><span class="pill ${daysOld <= 5 ? 'ok' : 'warn'}">${daysOld <= 5 ? 'เป็นปัจจุบัน' : `ผ่านมา ${daysOld} วัน`}</span></div>
+  <div class="card stack"><div class="row between"><div><div class="eyebrow">NAV ล่าสุดในแอป</div><b style="font-family:var(--f-display);font-size:18px">${thd(lastD, true)}</b><div class="note">${ld ? `${{gpf: 'ดึงจากเว็บ กบข.', auto: 'อัปเดตอัตโนมัติ', manual: 'วางข้อความ', excel: 'นำเข้า Excel'}[ld.source] || ld.source}${ld.savedAt ? ' · บันทึก ' + new Date(ld.savedAt).toLocaleString('th-TH', {dateStyle: 'medium', timeStyle: 'short'}) : ''}` : 'ข้อมูลตั้งต้นจากไฟล์ Excel ของ กบข.'}</div></div></div>
+    <button class="btn block" data-act="navupdate">อัปเดต NAV จากเว็บ กบข.</button>
+    ${GH && ghToken() ? (() => { const u = unpublishedNav(); return u.length ? `<button class="btn sec block" data-act="navpublish">เผยแพร่ NAV ที่บันทึกในเครื่องให้ทุกคน (${u.length} วัน)</button>` : '<p class="note" style="margin:0">โหมดเจ้าของแอป: NAV ในเครื่องนี้เผยแพร่ให้ทุกคนครบแล้ว</p>'; })() : ''}</div>
+  ${navLogCard()}
   <div class="sec-h"><h2>ประวัติ NAV ที่บันทึก</h2></div>
   <div class="card">${Object.keys(S.navDb).length ? Object.entries(S.navDb).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30).map(([d, doc]) => `<div class="li"><div class="body"><div class="t">${thd(d, true)} <span class="pill">${esc({gpf: 'เว็บ กบข.', auto: 'อัตโนมัติ', manual: 'วางข้อความ', excel: 'Excel'}[doc.source] || doc.source)}</span>${doc.flags?.length ? ' <span class="pill warn">ตรวจแล้วมีข้อสังเกต</span>' : ''}</div><div class="s">${Object.keys(doc.values || {}).length} แผน${doc.values?.[heldPlans()[0]] ? ` · ${esc(sh(heldPlans()[0]))} ${nf(doc.values[heldPlans()[0]], 4)}` : ''}</div></div>${S.isOwner ? `<button class="btn ghost" data-delnav="${d}">ลบ</button>` : ''}</div>`).join('') : '<p class="note" style="margin:0">ยังไม่มี NAV ที่บันทึกเพิ่ม ข้อมูลตั้งต้นมาจากไฟล์ Excel ของ กบข. (ถึง 9 ต.ค. 2569)</p>'}</div>`;
 }
